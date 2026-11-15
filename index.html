@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Bunni POS</title>
+<meta name="theme-color" content="#5a1418">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bunni POS">
+<link rel="apple-touch-icon" href="img/icon-180.png">
+<link rel="icon" href="img/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand"><img src="img/logo.png" alt="BNY"><span>Bunni POS</span></div>
+    <nav class="tabs">
+      <button data-view="pos" class="active">الكاشير</button>
+      <button data-view="orders">الطلبات</button>
+      <button data-view="settings">الإعدادات</button>
+    </nav>
+    <div class="clock" id="clock"></div>
+  </header>
+
+  <main id="view-pos" class="view pos">
+    <section class="catalog">
+      <div class="cats" id="cats"></div>
+      <div class="grid" id="grid"></div>
+    </section>
+    <aside class="cart">
+      <div class="cart-head">
+        <h2>الطلب <span id="orderNo"></span></h2>
+        <button class="link danger" id="clearCart">تفريغ</button>
+      </div>
+      <div class="cart-lines" id="cartLines"></div>
+      <div class="cart-foot">
+        <input id="orderNote" class="input" placeholder="ملاحظة على الطلب (اختياري)" maxlength="80">
+        <div class="row">
+          <label for="discount">خصم (ر.س)</label>
+          <input id="discount" class="input small" type="number" inputmode="decimal" min="0" step="0.5" value="">
+        </div>
+        <div class="totals">
+          <div class="row"><span>المجموع</span><span id="subTotal">0</span></div>
+          <div class="row total"><span>الإجمالي</span><span id="grandTotal">0</span></div>
+        </div>
+        <div class="pay" id="payMethods">
+          <button data-pay="cash" class="active">كاش</button>
+          <button data-pay="card">شبكة</button>
+        </div>
+        <button class="primary" id="checkout" disabled>دفع وطباعة</button>
+      </div>
+    </aside>
+  </main>
+
+  <main id="view-orders" class="view" hidden>
+    <div class="panel">
+      <div class="panel-head">
+        <h2>طلبات يوم <input type="date" id="ordersDate" class="input small"></h2>
+        <button class="secondary" id="exportCsv">تصدير CSV</button>
+      </div>
+      <div class="stats" id="stats"></div>
+      <div class="orders" id="ordersList"></div>
+    </div>
+  </main>
+
+  <main id="view-settings" class="view" hidden>
+    <div class="panel">
+      <h2>المتجر والفاتورة</h2>
+      <div class="form">
+        <label>اسم المتجر على الفاتورة <input id="setShop" class="input"></label>
+        <label>تذييل الفاتورة <input id="setFooter" class="input"></label>
+        <label class="check"><input type="checkbox" id="setVat"> إظهار ضريبة القيمة المضافة 15% (الأسعار شاملة)</label>
+        <label>الرقم الضريبي <input id="setVatNo" class="input" inputmode="numeric"></label>
+      </div>
+
+      <h2>الطابعة</h2>
+      <div class="form">
+        <label>طريقة الطباعة
+          <select id="setPrintMode" class="input">
+            <option value="airprint">AirPrint (نافذة طباعة الآيباد)</option>
+            <option value="epson">Epson ePOS عبر الشبكة (طباعة مباشرة بدون نافذة)</option>
+            <option value="none">بدون طباعة</option>
+          </select>
+        </label>
+        <label>عرض الورق
+          <select id="setPaper" class="input"><option value="80">80mm</option><option value="58">58mm</option></select>
+        </label>
+        <label id="ipRow">عنوان IP للطابعة <input id="setIp" class="input" placeholder="192.168.1.50" inputmode="decimal" dir="ltr"></label>
+        <p class="hint" id="printHint"></p>
+        <div><button class="secondary" id="testPrint">طباعة تجريبية</button></div>
+      </div>
+
+      <h2>الأصناف والأسعار</h2>
+      <p class="hint">غيّر السعر أو أخفِ الصنف مؤقتاً. التغييرات تُحفظ على هذا الجهاز.</p>
+      <div class="menu-edit" id="menuEdit"></div>
+    </div>
+  </main>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+<div id="receipt" class="receipt" aria-hidden="true"></div>
+
+<script src="menu.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

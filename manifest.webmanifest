@@ -1,0 +1,15 @@
+{
+  "name": "Bunni POS",
+  "short_name": "Bunni POS",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#5a1418",
+  "theme_color": "#5a1418",
+  "icons": [
+    { "src": "img/icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "img/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
