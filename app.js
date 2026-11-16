@@ -229,6 +229,7 @@
     $('#subTotal').textContent = money(t.sub) + ' ر.س';
     $('#grandTotal').textContent = money(t.total) + ' ر.س';
     $('#checkout').disabled = !cart.length;
+    renderCash(t.total);
     $('#orderNo').textContent = '#' + nextSeq(false);
   }
 
@@ -241,8 +242,32 @@
     $('#pagerRow').hidden = n === 0;
   }
 
+  // الباقي للزبون عند الدفع كاش
+  function cashInfo(total) {
+    const v = $('#received').value.trim();
+    if (pay !== 'cash' || v === '') return null;
+    const received = Math.max(0, parseFloat(v) || 0);
+    return { received, change: Math.round((received - total) * 100) / 100 };
+  }
+
+  function renderCash(total) {
+    const box = $('#cashBox');
+    box.hidden = pay !== 'cash' || !cart.length;
+    if (box.hidden) return;
+    // أزرار سريعة: المبلغ مضبوط + أقرب فئات أوراق نقدية أكبر من الإجمالي
+    const opts = [total];
+    for (const n of [Math.ceil(total / 10) * 10, 50, 100, 200, 500]) if (n > total && !opts.includes(n)) opts.push(n);
+    const q = $('#quickCash'); q.replaceChildren();
+    for (const n of opts.slice(0, 5)) {
+      q.append(el('button', { text: n === total ? 'مضبوط' : money(n), onclick: () => { $('#received').value = n; renderCart(); } }));
+    }
+    const c = cashInfo(total), out = $('#changeDue'), row = out.parentElement;
+    row.classList.toggle('short', !!c && c.change < 0);
+    out.textContent = !c ? '—' : c.change < 0 ? `ناقص ${money(-c.change)} ر.س` : `${money(c.change)} ر.س`;
+  }
+
   function resetCart() {
-    cart = []; $('#discount').value = ''; $('#orderNote').value = ''; $('#pager').value = '';
+    cart = []; $('#discount').value = ''; $('#orderNote').value = ''; $('#pager').value = ''; $('#received').value = '';
     renderCart(); renderGrid();
   }
 
@@ -259,6 +284,8 @@
       pay, note: $('#orderNote').value.trim(),
       pager: $('#pager').value || '',
     };
+    const c = cashInfo(t.total);
+    if (c && c.received > 0) { order.received = c.received; order.change = Math.max(0, c.change); }
     orders.push(order);
     if (!save('bunni.orders', orders)) toast('تعذّر حفظ الطلب على الجهاز — تحقق من مساحة التخزين');
     queue('order', order);
@@ -295,6 +322,10 @@
     tt.append(el('tr', { class: 't' }, [el('td', { text: 'الإجمالي' }), el('td', { class: 'p', text: money(o.total) + ' ر.س' })]));
     if (settings.vat) tt.append(el('tr', {}, [el('td', { text: 'شامل ضريبة 15%' }), el('td', { class: 'p', text: money(+vatOf(o.total).toFixed(2)) })]));
     tt.append(el('tr', {}, [el('td', { text: 'الدفع' }), el('td', { class: 'p', text: PAY[o.pay] || o.pay })]));
+    if (o.received) {
+      tt.append(el('tr', {}, [el('td', { text: 'المستلم' }), el('td', { class: 'p', text: money(o.received) })]));
+      tt.append(el('tr', { class: 't' }, [el('td', { text: 'الباقي' }), el('td', { class: 'p', text: money(o.change || 0) + ' ر.س' })]));
+    }
     r.append(tt);
     if (o.note) r.append(el('hr'), el('div', { text: 'ملاحظة: ' + o.note }));
     if (o.void) r.append(el('hr'), el('div', { class: 'big', text: 'ملغي' }));
@@ -321,6 +352,7 @@
     LR('الإجمالي', money(o.total) + ' ر.س', 32, true);
     if (settings.vat) LR('شامل ضريبة 15%', money(+vatOf(o.total).toFixed(2)), 22);
     LR('الدفع', PAY[o.pay] || o.pay, 22);
+    if (o.received) { LR('المستلم', money(o.received), 24); LR('الباقي', money(o.change || 0) + ' ر.س', 30, true); }
     if (o.note) { HR(); rows.push({ type: 'r', a: 'ملاحظة: ' + o.note, size: 22 }); }
     if (o.void) { HR(); T('ملغي', 44, true); }
     HR(); T(settings.footer, 22);
@@ -577,8 +609,10 @@
   document.querySelectorAll('#payMethods button').forEach((b) => b.addEventListener('click', () => {
     pay = b.dataset.pay;
     document.querySelectorAll('#payMethods button').forEach((x) => x.classList.toggle('active', x === b));
+    renderCart();
   }));
   $('#discount').addEventListener('input', renderCart);
+  $('#received').addEventListener('input', renderCart);
   $('#clearCart').addEventListener('click', () => { if (cart.length && confirm('تفريغ الطلب الحالي؟')) resetCart(); });
   $('#checkout').addEventListener('click', checkout);
   $('#ordersDate').value = dayKey();

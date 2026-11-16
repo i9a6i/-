@@ -55,6 +55,14 @@
           <button data-pay="cash" class="active">كاش</button>
           <button data-pay="card">شبكة</button>
         </div>
+        <div class="cash" id="cashBox" hidden>
+          <div class="row">
+            <label for="received">المبلغ المستلم</label>
+            <input id="received" class="input small" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0">
+          </div>
+          <div class="quick" id="quickCash"></div>
+          <div class="row change"><span>الباقي للزبون</span><span id="changeDue">—</span></div>
+        </div>
         <button class="primary" id="checkout" disabled>دفع وطباعة</button>
       </div>
     </aside>

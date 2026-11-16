@@ -37,6 +37,7 @@ function message(ev, stats) {
     for (const l of d.items || []) lines.push(`• ${l.name} ×${l.qty} = ${L.fmt(l.price * l.qty)}`);
     if (d.disc) lines.push(`خصم: -${L.fmt(d.disc)}`);
     lines.push(`الإجمالي: ${L.fmt(d.total)} ر.س (${PAY[d.pay] || d.pay})`);
+    if (d.received) lines.push(`المستلم: ${L.fmt(d.received)} — الباقي: ${L.fmt(d.change)}`);
     if (d.note) lines.push(`ملاحظة: ${d.note}`);
     return lines.join('\n') + '\n\n' + L.statsLine(stats);
   }
