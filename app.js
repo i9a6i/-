@@ -241,17 +241,36 @@
     return btoa(bin);
   }
 
+  // جسم ePOS-Print XML: الفاتورة كصورة نقطية ثم قص الورق
+  function eposPrintXml(o) {
+    const cv = receiptCanvas(o);
+    return '<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">' +
+      `<image width="${cv.width}" height="${cv.height}" color="color_1" mode="mono">${canvasToMonoBase64(cv)}</image>` +
+      '<feed line="3"/><cut type="feed"/>' +
+      '</epos-print>';
+  }
+
+  // عبر تطبيق Epson TM Print Assistant على الآيباد (يطبع على الطابعة عبر الشبكة المحلية)
+  function printTmAssistant(o) {
+    const q = new URLSearchParams({
+      ver: '1',
+      'data-type': 'eposprintxml',
+      data: '<?xml version="1.0" encoding="utf-8"?>' + eposPrintXml(o),
+      reselect: 'no',
+      'paper-width': settings.paper,
+      success: location.origin + location.pathname,
+    });
+    location.href = 'tmprintassistant://tmprintassistant.epson.com/print?' + q.toString().replace(/\+/g, '%20');
+  }
+
   async function printEpson(o) {
     const ip = settings.ip.trim();
     if (!/^[\w.\-:]+$/.test(ip)) throw new Error('أدخل عنوان IP للطابعة في الإعدادات');
-    const cv = receiptCanvas(o);
     const xml =
       '<?xml version="1.0" encoding="utf-8"?>' +
       '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body>' +
-      '<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">' +
-      `<image width="${cv.width}" height="${cv.height}" color="color_1" mode="mono">${canvasToMonoBase64(cv)}</image>` +
-      '<feed line="3"/><cut type="feed"/>' +
-      '</epos-print></s:Body></s:Envelope>';
+      eposPrintXml(o) +
+      '</s:Body></s:Envelope>';
     const proto = location.protocol === 'https:' ? 'https' : 'http';
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), 12000);
@@ -271,6 +290,7 @@
 
   async function printOrder(o) {
     if (settings.printMode === 'none') { toast(`تم حفظ الطلب #${o.no}`); return; }
+    if (settings.printMode === 'tmassist') { printTmAssistant(o); return; }
     if (settings.printMode === 'epson') {
       try { await printEpson(o); toast(`تمت طباعة الطلب #${o.no}`); }
       catch (e) {
@@ -365,6 +385,8 @@
         ? 'تظهر نافذة الطباعة في الآيباد بعد كل طلب. تحتاج طابعة تدعم AirPrint على نفس شبكة الواي فاي.'
         : mode === 'epson'
         ? 'لطابعات Epson TM التي تدعم ePOS-Print (مثل TM-m30 / TM-T88VI). فعّل ePOS-Print من صفحة إعدادات الطابعة، وافتح https://عنوان-الطابعة مرة واحدة من سفاري واقبل الشهادة قبل أول طباعة.'
+        : mode === 'tmassist'
+        ? 'يفتح تطبيق Epson TM Print Assistant ويطبع الفاتورة على الطابعة المحددة فيه، ثم ارجع للكاشير. ثبّت التطبيق واختر الطابعة فيه أولاً.'
         : 'يُحفظ الطلب فقط دون طباعة.';
   }
 
