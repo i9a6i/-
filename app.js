@@ -85,6 +85,8 @@
     'اختر طريقة طباعة أولاً': 'Choose a print method first', 'تفريغ الطلب الحالي؟': 'Clear the current order?',
     'فعّل السحابة من الإعدادات أولاً': 'Turn on the cloud in Settings first', 'أُضيف {n} طلب من السحابة': '{n} order(s) added from the cloud',
     'الطلبات مطابقة للسحابة': 'Orders match the cloud',
+    'المبلغ المستلم': 'Cash received', 'الباقي للزبون': 'Change due', 'مضبوط': 'Exact', 'ناقص {n}': 'Short {n}',
+    'المستلم': 'Received', 'الباقي': 'Change',
   };
   const t = (s, vars) => {
     let r = lang === 'en' && EN[s] != null ? EN[s] : s;
@@ -315,6 +317,7 @@
     $('#subTotal').textContent = money(tot.sub) + ' ' + t('ر.س');
     $('#grandTotal').textContent = money(tot.total) + ' ' + t('ر.س');
     $('#checkout').disabled = !cart.length;
+    renderCash(tot.total);
     $('#orderNo').textContent = '#' + nextSeq(false);
   }
 
@@ -327,8 +330,32 @@
     $('#pagerRow').hidden = n === 0;
   }
 
+  // الباقي للزبون عند الدفع كاش
+  function cashInfo(total) {
+    const v = $('#received').value.trim();
+    if (pay !== 'cash' || v === '') return null;
+    const received = Math.max(0, parseFloat(v) || 0);
+    return { received, change: Math.round((received - total) * 100) / 100 };
+  }
+
+  function renderCash(total) {
+    const box = $('#cashBox');
+    box.hidden = pay !== 'cash' || !cart.length;
+    if (box.hidden) return;
+    // أزرار سريعة: المبلغ مضبوط + أقرب فئات أوراق نقدية أكبر من الإجمالي
+    const opts = [total];
+    for (const n of [Math.ceil(total / 10) * 10, 50, 100, 200, 500]) if (n > total && !opts.includes(n)) opts.push(n);
+    const q = $('#quickCash'); q.replaceChildren();
+    for (const n of opts.slice(0, 5)) {
+      q.append(el('button', { text: n === total ? t('مضبوط') : money(n), onclick: () => { $('#received').value = n; renderCart(); } }));
+    }
+    const c = cashInfo(total), out = $('#changeDue'), row = out.parentElement;
+    row.classList.toggle('short', !!c && c.change < 0);
+    out.textContent = !c ? '—' : c.change < 0 ? t('ناقص {n}', { n: money(-c.change) + ' ' + t('ر.س') }) : `${money(c.change)} ${t('ر.س')}`;
+  }
+
   function resetCart() {
-    cart = []; $('#discount').value = ''; $('#orderNote').value = ''; $('#pager').value = '';
+    cart = []; $('#discount').value = ''; $('#orderNote').value = ''; $('#pager').value = ''; $('#received').value = '';
     renderCart(); renderGrid();
   }
 
@@ -345,6 +372,8 @@
       pay, note: $('#orderNote').value.trim(),
       pager: $('#pager').value || '',
     };
+    const c = cashInfo(tot.total);
+    if (c && c.received > 0) { order.received = c.received; order.change = Math.max(0, c.change); }
     orders.push(order);
     if (!save('bunni.orders', orders)) toast(t('تعذّر حفظ الطلب على الجهاز — تحقق من مساحة التخزين'));
     queue('order', order);
@@ -411,6 +440,10 @@
     tt.append(el('tr', { class: 't' }, [el('td', { text: t('الإجمالي') }), el('td', { class: 'p', text: money(o.total) + ' ' + t('ر.س') })]));
     if (settings.vat) tt.append(el('tr', {}, [el('td', { text: t('شامل ضريبة 15%') }), el('td', { class: 'p', text: money(+vatOf(o.total).toFixed(2)) })]));
     tt.append(el('tr', {}, [el('td', { text: t('الدفع') }), el('td', { class: 'p', text: t(PAY[o.pay] || o.pay) })]));
+    if (o.received) {
+      tt.append(el('tr', {}, [el('td', { text: t('المستلم') }), el('td', { class: 'p', text: money(o.received) })]));
+      tt.append(el('tr', { class: 't' }, [el('td', { text: t('الباقي') }), el('td', { class: 'p', text: money(o.change || 0) + ' ' + t('ر.س') })]));
+    }
     r.append(tt);
     if (o.note) r.append(el('hr'), el('div', { text: t('ملاحظة: {n}', { n: o.note }) }));
     if (o.void) r.append(el('hr'), el('div', { class: 'big', text: t('ملغي') }));
@@ -450,6 +483,7 @@
     LR(t('الإجمالي'), money(o.total) + ' ' + t('ر.س'), 32, true);
     if (settings.vat) LR(t('شامل ضريبة 15%'), money(+vatOf(o.total).toFixed(2)), 22);
     LR(t('الدفع'), t(PAY[o.pay] || o.pay), 22);
+    if (o.received) { LR(t('المستلم'), money(o.received), 24); LR(t('الباقي'), money(o.change || 0) + ' ' + t('ر.س'), 30, true); }
     if (o.note) { HR(); rows.push({ type: 'r', a: t('ملاحظة: {n}', { n: o.note }), size: 22 }); }
     if (o.void) { HR(); T(t('ملغي'), 44, true); }
     HR(); T(footerText(), 22);
@@ -716,8 +750,10 @@
   document.querySelectorAll('#payMethods button').forEach((b) => b.addEventListener('click', () => {
     pay = b.dataset.pay;
     document.querySelectorAll('#payMethods button').forEach((x) => x.classList.toggle('active', x === b));
+    renderCart();
   }));
   $('#discount').addEventListener('input', renderCart);
+  $('#received').addEventListener('input', renderCart);
   $('#clearCart').addEventListener('click', () => { if (cart.length && confirm(t('تفريغ الطلب الحالي؟'))) resetCart(); });
   $('#checkout').addEventListener('click', checkout);
   $('#ordersDate').value = dayKey();

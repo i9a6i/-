@@ -216,3 +216,11 @@ html[dir=ltr] .lang-btn { order: -1; }
 .log-row small { color: #8a6f6a; white-space: nowrap; direction: ltr; }
 .log-row.void span { color: #b3261e; }
 .log-row.menu span { color: #2f5d8a; }
+
+.cash { display: grid; gap: 6px; padding: 8px 10px; border: 1.5px dashed var(--line); border-radius: 12px; background: #fffaf2; }
+.cash[hidden] { display: none; }
+.cash .quick { display: flex; gap: 6px; flex-wrap: wrap; }
+.cash .quick button { flex: 1; min-width: 52px; padding: 8px 6px; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; font-weight: 800; font-variant-numeric: tabular-nums; }
+.cash .quick button:active { background: var(--cream); }
+.cash .change { font-size: 20px; font-weight: 800; color: #1f7a3a; font-variant-numeric: tabular-nums; }
+.cash .change.short { color: #b3261e; }
