@@ -29,7 +29,7 @@
   // ---------- الحالة ----------
   const PAY = { cash: 'كاش', card: 'شبكة' };
   const settings = Object.assign(
-    { shop: 'BNY', footer: 'شكراً لزيارتكم', vat: false, vatNo: '', printMode: 'airprint', paper: '80', ip: '' },
+    { shop: 'BNY', footer: 'شكراً لزيارتكم', vat: false, vatNo: '', printMode: 'airprint', paper: '80', ip: '', pagers: 20 },
     load('bunni.settings', {})
   );
   const overrides = load('bunni.menu', {}); // { id: { price, hidden } }
@@ -37,6 +37,10 @@
   let cart = []; // { id, name, price, qty }
   let cat = 'all';
   let pay = 'cash';
+
+  // شعار الفاتورة (أبيض وأسود) يُحمَّل مسبقاً ليُرسم على صورة الفاتورة
+  const receiptLogo = new Image();
+  receiptLogo.src = 'img/receipt-logo.png';
 
   const items = () => window.MENU.map((m) => ({ ...m, ...(overrides[m.id] || {}) }));
   const visibleItems = () => items().filter((m) => !m.hidden && (cat === 'all' || m.cat === cat));
@@ -63,12 +67,16 @@
       const inCart = cart.find((l) => l.id === m.id);
       const pic = m.img
         ? el('img', { class: 'pic', src: 'img/' + m.img, alt: '', loading: 'lazy' })
-        : el('div', { class: 'pic ph ' + m.cat }, [el('div', {}, ['BNY', el('small', { text: m.cat === 'cold' ? 'COLD' : 'HOT' })])]);
+        : el('div', { class: 'pic ph ' + m.cat }, [
+            el('span', { class: 'gfx', text: m.icon || (m.cat === 'cold' ? '🧊' : '☕') }),
+            el('img', { src: 'img/logo.png', alt: '' }),
+            el('small', { text: m.cat === 'cold' ? 'بارد' : 'حار' }),
+          ]);
       grid.append(
         el('button', { class: 'tile', onclick: () => addToCart(m) }, [
           pic,
           inCart ? el('span', { class: 'badge', text: inCart.qty }) : null,
-          el('div', { class: 'meta' }, [el('span', { class: 'name', text: m.name }), el('span', { class: 'price', text: money(m.price) })]),
+          el('div', { class: 'meta' }, [el('span', { class: 'name', text: m.name }), el('span', { class: 'price', text: money(m.price) + ' ر.س' })]),
         ])
       );
     }
@@ -118,8 +126,17 @@
     $('#orderNo').textContent = '#' + nextSeq(false);
   }
 
+  function renderPagers() {
+    const sel = $('#pager'), cur = sel.value;
+    const n = Math.min(99, Math.max(0, parseInt(settings.pagers, 10) || 0));
+    sel.replaceChildren(el('option', { value: '', text: 'بدون بيجر' }));
+    for (let i = 1; i <= n; i++) sel.append(el('option', { value: String(i), text: 'بيجر ' + i }));
+    sel.value = cur && +cur <= n ? cur : '';
+    $('#pagerRow').hidden = n === 0;
+  }
+
   function resetCart() {
-    cart = []; $('#discount').value = ''; $('#orderNote').value = '';
+    cart = []; $('#discount').value = ''; $('#orderNote').value = ''; $('#pager').value = '';
     renderCart(); renderGrid();
   }
 
@@ -134,6 +151,7 @@
       items: cart.map((l) => ({ ...l })),
       sub: t.sub, disc: t.disc, total: t.total,
       pay, note: $('#orderNote').value.trim(),
+      pager: $('#pager').value || '',
     };
     orders.push(order);
     if (!save('bunni.orders', orders)) toast('تعذّر حفظ الطلب على الجهاز — تحقق من مساحة التخزين');
@@ -148,11 +166,12 @@
     const r = $('#receipt'); r.replaceChildren();
     r.style.setProperty('--paper', settings.paper === '58' ? '48mm' : '72mm');
     const d = new Date(o.ts);
-    r.append(el('h1', { text: settings.shop }));
+    r.append(el('img', { class: 'logo', src: 'img/receipt-logo.png', alt: '' }), el('h1', { text: settings.shop }));
     if (settings.vat && settings.vatNo) r.append(el('div', { class: 'c', text: 'الرقم الضريبي: ' + settings.vatNo }));
     r.append(
       el('div', { class: 'c', text: 'طلب رقم' }),
       el('div', { class: 'big', text: '#' + o.no }),
+      o.pager ? el('div', { class: 'pager', text: 'بيجر ' + o.pager }) : null,
       el('div', { class: 'c', text: `${o.day}  ${pad(d.getHours())}:${pad(d.getMinutes())}` }),
       el('hr')
     );
@@ -183,11 +202,13 @@
     const T = (a, size = 24, bold = false) => rows.push({ type: 'c', a, size, bold });
     const LR = (a, b, size = 24, bold = false) => rows.push({ type: 'lr', a, b, size, bold });
     const HR = () => rows.push({ type: 'hr', size: 16 });
-    T(settings.shop, 40, true);
-    if (settings.vat && settings.vatNo) T('الرقم الضريبي: ' + settings.vatNo, 20);
-    T('طلب رقم', 22); T('#' + o.no, 56, true);
-    T(`${o.day}  ${pad(d.getHours())}:${pad(d.getMinutes())}`, 22); HR();
-    for (const l of o.items) LR(`${l.name}  ×${l.qty}`, money(l.price * l.qty));
+    if (receiptLogo.complete && receiptLogo.naturalWidth) rows.push({ type: 'img', img: receiptLogo, h: 210 });
+    T(settings.shop, 36, true);
+    if (settings.vat && settings.vatNo) T('الرقم الضريبي: ' + settings.vatNo, 22);
+    T('طلب رقم', 24); T('#' + o.no, 60, true);
+    if (o.pager) rows.push({ type: 'box', a: 'بيجر ' + o.pager, size: 52 });
+    T(`${o.day}  ${pad(d.getHours())}:${pad(d.getMinutes())}`, 24); HR();
+    for (const l of o.items) LR(`${l.name}  ×${l.qty}`, money(l.price * l.qty), 30, true);
     HR();
     if (o.disc) { LR('المجموع', money(o.sub)); LR('خصم', '-' + money(o.disc)); }
     LR('الإجمالي', money(o.total) + ' ر.س', 32, true);
@@ -197,7 +218,7 @@
     if (o.void) { HR(); T('ملغي', 44, true); }
     HR(); T(settings.footer, 22);
 
-    const lh = (r) => Math.round(r.size * 1.5);
+    const lh = (r) => r.type === 'img' ? r.h + 12 : r.type === 'box' ? Math.round(r.size * 1.9) : Math.round(r.size * 1.5);
     const H = rows.reduce((s, r) => s + lh(r), 0) + 24;
     const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
     const ctx = cv.getContext('2d');
@@ -208,7 +229,16 @@
     for (const r of rows) {
       const h = lh(r), cy = y + h / 2;
       ctx.font = `${r.bold ? 'bold ' : ''}${r.size}px -apple-system, "Segoe UI", Tahoma, sans-serif`;
-      if (r.type === 'hr') {
+      if (r.type === 'img') {
+        const iw = r.img.naturalWidth * (r.h / r.img.naturalHeight);
+        ctx.drawImage(r.img, (W - iw) / 2, y, iw, r.h);
+      } else if (r.type === 'box') {
+        // رقم البيجر: نص أبيض داخل مستطيل أسود ليكون واضحاً من بعيد
+        ctx.font = `bold ${r.size}px -apple-system, "Segoe UI", Tahoma, sans-serif`;
+        const bw = Math.min(W - 2 * M, ctx.measureText(r.a).width + 60), bh = h - 12;
+        ctx.fillRect((W - bw) / 2, y + 6, bw, bh);
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(r.a, W / 2, cy, bw - 20); ctx.fillStyle = '#000';
+      } else if (r.type === 'hr') {
         ctx.setLineDash([8, 6]); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(M, cy); ctx.lineTo(W - M, cy); ctx.stroke();
       } else if (r.type === 'c') {
         ctx.textAlign = 'center'; ctx.fillText(r.a, W / 2, cy, W - 2 * M);
@@ -323,7 +353,7 @@
       box.append(
         el('div', { class: 'order' + (o.void ? ' void' : '') }, [
           el('div', { class: 'oh' }, [
-            el('b', { text: `#${o.no} — ${timeStr(o.ts)}` }),
+            el('b', { text: `#${o.no} — ${timeStr(o.ts)}` + (o.pager ? ` — بيجر ${o.pager}` : '') }),
             el('span', {}, [el('span', { class: 'tag', text: o.void ? 'ملغي' : PAY[o.pay] }), ' ', el('b', { text: money(o.total) + ' ر.س' })]),
           ]),
           el('div', { class: 'oi', text: o.items.map((l) => `${l.name} ×${l.qty}`).join('، ') + (o.note ? ` — ${o.note}` : '') }),
@@ -342,9 +372,9 @@
   function exportCsv() {
     const day = $('#ordersDate').value || dayKey();
     const q = (s) => '"' + String(s).replace(/"/g, '""') + '"';
-    const rows = [['رقم', 'الوقت', 'الأصناف', 'المجموع', 'الخصم', 'الإجمالي', 'الدفع', 'الحالة', 'ملاحظة']];
+    const rows = [['رقم', 'البيجر', 'الوقت', 'الأصناف', 'المجموع', 'الخصم', 'الإجمالي', 'الدفع', 'الحالة', 'ملاحظة']];
     for (const o of orders.filter((x) => x.day === day)) {
-      rows.push([o.no, timeStr(o.ts), o.items.map((l) => `${l.name} x${l.qty}`).join(' | '), o.sub, o.disc, o.total, PAY[o.pay], o.void ? 'ملغي' : '', o.note || '']);
+      rows.push([o.no, o.pager || '', timeStr(o.ts), o.items.map((l) => `${l.name} x${l.qty}`).join(' | '), o.sub, o.disc, o.total, PAY[o.pay], o.void ? 'ملغي' : '', o.note || '']);
     }
     const blob = new Blob(['﻿' + rows.map((r) => r.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const a = el('a', { href: URL.createObjectURL(blob), download: `bunni-orders-${day}.csv` });
@@ -357,6 +387,7 @@
     $('#setShop').value = settings.shop; $('#setFooter').value = settings.footer;
     $('#setVat').checked = settings.vat; $('#setVatNo').value = settings.vatNo;
     $('#setPrintMode').value = settings.printMode; $('#setPaper').value = settings.paper; $('#setIp').value = settings.ip;
+    $('#setPagers').value = settings.pagers;
     updatePrintHint();
     const box = $('#menuEdit'); box.replaceChildren();
     const catName = Object.fromEntries(window.CATEGORIES.map((c) => [c.id, c.name]));
@@ -397,9 +428,13 @@
     });
     bind('#setShop', 'shop'); bind('#setFooter', 'footer'); bind('#setVat', 'vat', 'checked'); bind('#setVatNo', 'vatNo');
     bind('#setPrintMode', 'printMode'); bind('#setPaper', 'paper'); bind('#setIp', 'ip');
+    $('#setPagers').addEventListener('change', (e) => {
+      settings.pagers = Math.min(99, Math.max(0, parseInt(e.target.value, 10) || 0));
+      e.target.value = settings.pagers; save('bunni.settings', settings); renderPagers();
+    });
     $('#testPrint').addEventListener('click', () => {
       if (settings.printMode === 'none') { toast('اختر طريقة طباعة أولاً'); return; }
-      printOrder({ no: 0, ts: Date.now(), day: dayKey(), items: [{ name: 'طباعة تجريبية', price: 0, qty: 1 }], sub: 0, disc: 0, total: 0, pay: 'cash', note: '' });
+      printOrder({ no: 0, ts: Date.now(), day: dayKey(), items: [{ name: 'طباعة تجريبية', price: 0, qty: 1 }], sub: 0, disc: 0, total: 0, pay: 'cash', note: '', pager: '1' });
     });
   }
 
@@ -428,7 +463,7 @@
   const tick = () => { const d = new Date(); $('#clock').textContent = `${dayKey(d)}  ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
   tick(); setInterval(tick, 20000);
 
-  renderCats(); renderGrid(); renderCart();
+  renderPagers(); renderCats(); renderGrid(); renderCart();
 
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();

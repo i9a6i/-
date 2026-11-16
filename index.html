@@ -38,6 +38,10 @@
       </div>
       <div class="cart-lines" id="cartLines"></div>
       <div class="cart-foot">
+        <div class="row" id="pagerRow">
+          <label for="pager">رقم البيجر</label>
+          <select id="pager" class="input pager-select"></select>
+        </div>
         <input id="orderNote" class="input" placeholder="ملاحظة على الطلب (اختياري)" maxlength="80">
         <div class="row">
           <label for="discount">خصم (ر.س)</label>
@@ -92,6 +96,7 @@
         </label>
         <label id="ipRow">عنوان IP للطابعة <input id="setIp" class="input" placeholder="192.168.1.50" inputmode="decimal" dir="ltr"></label>
         <p class="hint" id="printHint"></p>
+        <label>عدد البيجرات (0 لإخفاء خيار البيجر) <input id="setPagers" class="input small" type="number" inputmode="numeric" min="0" max="99"></label>
         <div><button class="secondary" id="testPrint">طباعة تجريبية</button></div>
       </div>
 
