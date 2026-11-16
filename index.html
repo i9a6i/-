@@ -64,7 +64,10 @@
     <div class="panel">
       <div class="panel-head">
         <h2>طلبات يوم <input type="date" id="ordersDate" class="input small"></h2>
-        <button class="secondary" id="exportCsv">تصدير CSV</button>
+        <div class="head-actions">
+          <button class="secondary" id="ordersCloud">جلب من السحابة</button>
+          <button class="secondary" id="exportCsv">تصدير CSV</button>
+        </div>
       </div>
       <div class="stats" id="stats"></div>
       <div class="orders" id="ordersList"></div>
@@ -100,8 +103,16 @@
         <div><button class="secondary" id="testPrint">طباعة تجريبية</button></div>
       </div>
 
+      <h2>السحابة وسجل التحديثات</h2>
+      <div class="form">
+        <label>رمز السحابة <input id="setCloudKey" class="input" type="password" autocomplete="off" dir="ltr"></label>
+        <p class="hint" id="cloudStatus"></p>
+        <div><button class="secondary" id="cloudSync">مزامنة الآن وعرض السجل</button></div>
+        <div class="cloud-log" id="cloudLog"></div>
+      </div>
+
       <h2>الأصناف والأسعار</h2>
-      <p class="hint">غيّر السعر أو أخفِ الصنف مؤقتاً. التغييرات تُحفظ على هذا الجهاز.</p>
+      <p class="hint">غيّر السعر أو أخفِ الصنف مؤقتاً. التغييرات تُحفظ على هذا الجهاز وفي السحابة.</p>
       <div class="menu-edit" id="menuEdit"></div>
     </div>
   </main>

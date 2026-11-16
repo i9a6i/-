@@ -190,3 +190,12 @@ input, select { -webkit-user-select: text; user-select: text; }
 }
 
 .pager-select { width: auto; min-width: 9em; font-weight: 700; }
+
+.head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.cloud-log { max-height: 320px; overflow: auto; border: 1.5px solid var(--line); border-radius: 12px; background: #fff; }
+.cloud-log:empty { display: none; }
+.log-row { display: flex; gap: 10px; align-items: baseline; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.log-row:last-child { border-bottom: 0; }
+.log-row small { color: #8a6f6a; white-space: nowrap; direction: ltr; }
+.log-row.void span { color: #b3261e; }
+.log-row.menu span { color: #2f5d8a; }

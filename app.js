@@ -29,7 +29,7 @@
   // ---------- الحالة ----------
   const PAY = { cash: 'كاش', card: 'شبكة' };
   const settings = Object.assign(
-    { shop: 'BNY', footer: 'شكراً لزيارتكم', vat: false, vatNo: '', printMode: 'airprint', paper: '80', ip: '', pagers: 20 },
+    { shop: 'BNY', footer: 'شكراً لزيارتكم', vat: false, vatNo: '', printMode: 'airprint', paper: '80', ip: '', pagers: 20, cloudKey: '' },
     load('bunni.settings', {})
   );
   const overrides = load('bunni.menu', {}); // { id: { price, hidden } }
@@ -37,6 +37,86 @@
   let cart = []; // { id, name, price, qty }
   let cat = 'all';
   let pay = 'cash';
+
+  // ---------- السحابة ----------
+  // كل حدث (طلب، إلغاء، تعديل منيو) يُضاف إلى صندوق صادر محفوظ على الجهاز،
+  // ثم يُرسل إلى /api/sync. إن انقطع الإنترنت يبقى في الصندوق ويُرسل لاحقاً.
+  let outbox = load('bunni.outbox', []);
+  let cloudState = { last: 0, error: '' };
+  let flushing = false;
+
+  function queue(type, data) {
+    outbox.push({ id: `${type}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`, type, ts: Date.now(), data });
+    save('bunni.outbox', outbox);
+    flush();
+  }
+
+  async function cloudFetch(url, opts = {}) {
+    const res = await fetch(url, { ...opts, headers: { 'Content-Type': 'application/json', 'x-pos-key': settings.cloudKey, ...(opts.headers || {}) } });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = { bad_key: 'رمز السحابة غير صحيح', storage_not_configured: 'التخزين السحابي غير مفعّل بعد', pos_key_not_configured: 'رمز السحابة غير مضبوط على الخادم' }[body.error];
+      throw new Error(msg || 'تعذّر الاتصال بالسحابة');
+    }
+    return body;
+  }
+
+  async function flush() {
+    if (flushing || !settings.cloudKey || !outbox.length) { renderCloudStatus(); return; }
+    flushing = true;
+    try {
+      while (outbox.length) {
+        const batch = outbox.slice(0, 100);
+        const r = await cloudFetch('api/sync', { method: 'POST', body: JSON.stringify({ events: batch }) });
+        const done = new Set(r.saved || []);
+        outbox = outbox.filter((e) => !done.has(e.id));
+        save('bunni.outbox', outbox);
+        if (!done.size) break;
+      }
+      cloudState = { last: Date.now(), error: '' };
+    } catch (e) {
+      cloudState.error = e.message;
+    } finally {
+      flushing = false; renderCloudStatus();
+    }
+  }
+
+  function renderCloudStatus() {
+    const box = $('#cloudStatus'); if (!box) return;
+    box.textContent = !settings.cloudKey
+      ? 'غير مفعّل — أدخل رمز السحابة.'
+      : cloudState.error
+      ? `⚠️ ${cloudState.error}. بانتظار الإرسال: ${outbox.length}`
+      : outbox.length
+      ? `بانتظار الإرسال: ${outbox.length}`
+      : cloudState.last ? `✅ كل شيء محفوظ في السحابة (آخر مزامنة ${timeStr(cloudState.last)})` : 'جاهز.';
+  }
+
+  // يجلب طلبات اليوم وسجل التحديثات من السحابة، ويدمج الطلبات الناقصة في هذا الجهاز
+  async function pullCloud(day) {
+    const r = await cloudFetch('api/sync?day=' + encodeURIComponent(day));
+    const have = new Map(orders.map((o) => [o.id, o]));
+    let added = 0;
+    for (const o of r.orders || []) {
+      const mine = have.get(o.id);
+      if (!mine) { orders.push(o); added++; } else if (o.void && !mine.void) mine.void = true;
+    }
+    if (added) save('bunni.orders', orders);
+    if (r.menu && !outbox.some((e) => e.type === 'menu')) {
+      for (const k of Object.keys(overrides)) delete overrides[k];
+      Object.assign(overrides, r.menu); save('bunni.menu', overrides);
+    }
+    return { added, log: r.log || [] };
+  }
+
+  function renderLog(log) {
+    const box = $('#cloudLog'); box.replaceChildren();
+    if (!log.length) { box.append(el('div', { class: 'empty', text: 'لا توجد تحديثات بعد' })); return; }
+    for (const l of log) {
+      const d = new Date(l.ts);
+      box.append(el('div', { class: 'log-row ' + l.type }, [el('small', { text: `${dayKey(d)} ${timeStr(l.ts)}` }), el('span', { text: l.text })]));
+    }
+  }
 
   // شعار الفاتورة (أبيض وأسود) يُحمَّل مسبقاً ليُرسم على صورة الفاتورة
   const receiptLogo = new Image();
@@ -155,6 +235,7 @@
     };
     orders.push(order);
     if (!save('bunni.orders', orders)) toast('تعذّر حفظ الطلب على الجهاز — تحقق من مساحة التخزين');
+    queue('order', order);
     resetCart();
     await printOrder(order);
   }
@@ -362,6 +443,7 @@
             o.void ? null : el('button', { class: 'link danger', text: 'إلغاء الطلب', onclick: () => {
               if (!confirm(`إلغاء الطلب #${o.no}؟ سيُستبعد من المبيعات.`)) return;
               o.void = true; save('bunni.orders', orders); renderOrders();
+              queue('void', o);
             } }),
           ]),
         ])
@@ -388,6 +470,8 @@
     $('#setVat').checked = settings.vat; $('#setVatNo').value = settings.vatNo;
     $('#setPrintMode').value = settings.printMode; $('#setPaper').value = settings.paper; $('#setIp').value = settings.ip;
     $('#setPagers').value = settings.pagers;
+    $('#setCloudKey').value = settings.cloudKey;
+    renderCloudStatus();
     updatePrintHint();
     const box = $('#menuEdit'); box.replaceChildren();
     const catName = Object.fromEntries(window.CATEGORIES.map((c) => [c.id, c.name]));
@@ -402,6 +486,8 @@
         if (!shown.checked) o.hidden = true;
         if (Object.keys(o).length) overrides[m.id] = o; else delete overrides[m.id];
         save('bunni.menu', overrides); renderGrid();
+        const now = items().find((x) => x.id === m.id);
+        queue('menu', { overrides: { ...overrides }, text: `${m.name}: ${now.hidden ? 'مخفي' : 'ظاهر'}، السعر ${money(now.price)} ر.س` });
       };
       price.addEventListener('change', commit); shown.addEventListener('change', commit);
       box.append(el('div', { class: 'me-row' }, [el('span', { class: 'n' }, [m.name + ' ', el('small', { text: catName[m.cat] })]), price, shown]));
@@ -428,6 +514,15 @@
     });
     bind('#setShop', 'shop'); bind('#setFooter', 'footer'); bind('#setVat', 'vat', 'checked'); bind('#setVatNo', 'vatNo');
     bind('#setPrintMode', 'printMode'); bind('#setPaper', 'paper'); bind('#setIp', 'ip');
+    $('#setCloudKey').addEventListener('change', (e) => {
+      settings.cloudKey = e.target.value.trim(); save('bunni.settings', settings); cloudState.error = ''; flush();
+    });
+    $('#cloudSync').addEventListener('click', async () => {
+      if (!settings.cloudKey) { toast('أدخل رمز السحابة أولاً'); return; }
+      await flush();
+      try { const r = await pullCloud(dayKey()); renderLog(r.log); toast(r.added ? `تمت المزامنة — أُضيف ${r.added} طلب من السحابة` : 'تمت المزامنة'); }
+      catch (err) { toast(err.message); }
+    });
     $('#setPagers').addEventListener('change', (e) => {
       settings.pagers = Math.min(99, Math.max(0, parseInt(e.target.value, 10) || 0));
       e.target.value = settings.pagers; save('bunni.settings', settings); renderPagers();
@@ -458,12 +553,19 @@
   $('#ordersDate').value = dayKey();
   $('#ordersDate').addEventListener('change', renderOrders);
   $('#exportCsv').addEventListener('click', exportCsv);
+  $('#ordersCloud').addEventListener('click', async () => {
+    if (!settings.cloudKey) { toast('فعّل السحابة من الإعدادات أولاً'); return; }
+    try { const r = await pullCloud($('#ordersDate').value || dayKey()); renderOrders(); toast(r.added ? `أُضيف ${r.added} طلب من السحابة` : 'الطلبات مطابقة للسحابة'); }
+    catch (err) { toast(err.message); }
+  });
+  window.addEventListener('online', flush);
+  setInterval(flush, 60000);
   bindSettings();
 
   const tick = () => { const d = new Date(); $('#clock').textContent = `${dayKey(d)}  ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
   tick(); setInterval(tick, 20000);
 
-  renderPagers(); renderCats(); renderGrid(); renderCart();
+  renderPagers(); renderCats(); renderGrid(); renderCart(); flush();
 
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
