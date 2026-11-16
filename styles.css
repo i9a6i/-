@@ -33,6 +33,13 @@ input, select { -webkit-user-select: text; user-select: text; }
 .tabs button { padding: 10px 18px; border-radius: 999px; color: var(--cream); font-weight: 600; opacity: .75; }
 .tabs button.active { background: var(--cream); color: var(--maroon); opacity: 1; }
 .clock { margin-inline-start: auto; font-variant-numeric: tabular-nums; opacity: .85; font-size: 14px; }
+/* زر اللغة: دائماً في الجهة اليسرى من الشريط العلوي، بالعربي والإنجليزي */
+.lang-btn {
+  padding: 8px 16px; border-radius: 999px; border: 1.5px solid var(--cream); color: var(--cream);
+  font-weight: 700; font-size: 15px; white-space: nowrap;
+}
+.lang-btn:active { background: var(--cream); color: var(--maroon); }
+html[dir=ltr] .lang-btn { order: -1; }
 
 .view { flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
 .view.pos { display: flex; overflow: hidden; }
@@ -159,6 +166,8 @@ input, select { -webkit-user-select: text; user-select: text; }
   .cart { width: auto; border-inline-start: 0; border-top: 1.5px solid var(--line); }
   .cart-lines { max-height: 40vh; }
   .brand span, .clock { display: none; }
+  .lang-btn { padding: 6px 10px; font-size: 14px; }
+  html[dir=rtl] .lang-btn { margin-inline-start: auto; }
   .tabs { margin-inline-start: 0; }
   .tabs button { padding: 8px 12px; }
 }
@@ -187,6 +196,14 @@ input, select { -webkit-user-select: text; user-select: text; }
   .receipt td.p { width: 22%; text-align: left; white-space: nowrap; }
   .receipt .t td { font-size: 16px; font-weight: 800; padding-top: 4px; }
   .receipt td.q, .receipt td.p { direction: ltr; unicode-bidi: isolate; }
+  .receipt .copy + .copy { break-before: page; page-break-before: always; }
+  .receipt .kind { font-size: 13px; font-weight: 700; }
+  .receipt .kind.inv { background: #000; color: #fff; text-align: center; font-size: 20px; font-weight: 800; padding: 4px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .receipt .huge { font-size: 44px; font-weight: 800; text-align: center; line-height: 1.2; }
+  .receipt .prep-items td { font-size: 22px; font-weight: 800; padding: 3px 0; }
+  .receipt .prep-items td.pq { width: 18%; padding-inline-end: 6px; direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
+  .receipt .prep-note { font-size: 18px; font-weight: 800; }
+  .receipt[dir=ltr] td.p { text-align: right; }
 }
 
 .pager-select { width: auto; min-width: 9em; font-weight: 700; }
