@@ -29,7 +29,7 @@
   // ---------- الحالة ----------
   const PAY = { cash: 'كاش', card: 'شبكة' };
   const settings = Object.assign(
-    { shop: 'BNY', footer: 'شكراً لزيارتكم', vat: false, vatNo: '', printMode: 'airprint', prepCopy: true, paper: '80', ip: '', pagers: 20, cloudKey: '' },
+    { shop: 'BNY', footer: 'شكراً لزيارتكم', vat: false, vatNo: '', printMode: 'airprint', prepCopy: true, receiptLang: 'en', paper: '80', ip: '', pagers: 20, cloudKey: '' },
     load('bunni.settings', {})
   );
 
@@ -66,7 +66,7 @@
     'لا توجد تحديثات بعد': 'No activity yet', 'الرقم الضريبي: {n}': 'VAT no.: {n}', 'طلب رقم': 'Order no.',
     'خصم': 'Discount', 'الخصم': 'Discount', 'شامل ضريبة 15%': 'Incl. 15% VAT', 'الدفع': 'Payment', 'ملاحظة: {n}': 'Note: {n}', 'ملغي': 'VOID',
     'شكراً لزيارتكم': 'Thank you for visiting',
-    'نسخة التحضير': 'PREP TICKET', 'نسخة الزبون': 'Customer copy',
+    'نسخة التحضير': 'PREP TICKET', 'لغة الفاتورة': 'Receipt language', 'نسخة الزبون': 'Customer copy',
     'طباعة نسختين: نسخة الزبون + نسخة التحضير للباريستا (بدون أسعار)': 'Print two copies: customer copy + prep ticket for the barista (no prices)',
     'أدخل عنوان IP للطابعة في الإعدادات': 'Enter the printer IP address in Settings', 'الطابعة رفضت الطلب': 'The printer rejected the job',
     'تم حفظ الطلب #{n}': 'Order #{n} saved', 'تمت طباعة الطلب #{n}': 'Order #{n} printed',
@@ -95,6 +95,12 @@
   const itemName = (l) => (lang === 'en' && menuById[l.id] && menuById[l.id].en) || l.name;
   const catLabel = (c) => (lang === 'en' && c.en) || c.name;
   const footerText = () => t(settings.footer);
+
+  // الفواتير تُطبع بلغتها الخاصة (الافتراضي إنجليزي) مهما كانت لغة الواجهة
+  const inReceiptLang = (fn) => {
+    const ui = lang; lang = settings.receiptLang === 'ar' ? 'ar' : 'en';
+    try { return fn(); } finally { lang = ui; }
+  };
 
   function applyLang() {
     const root = document.documentElement;
@@ -352,7 +358,8 @@
   // كل طلب يطبع نسختين: نسخة الزبون (بالأسعار) ونسخة التحضير للباريستا (بدون أسعار وبخط كبير)
   const copies = () => (settings.prepCopy ? ['customer', 'prep'] : ['customer']);
 
-  function buildReceiptDom(o) {
+  function buildReceiptDom(o) { inReceiptLang(() => buildReceiptDomNow(o)); }
+  function buildReceiptDomNow(o) {
     const box = $('#receipt'); box.replaceChildren(); box.dir = lang === 'en' ? 'ltr' : 'rtl';
     box.style.setProperty('--paper', settings.paper === '58' ? '48mm' : '72mm');
     for (const kind of copies()) {
@@ -507,7 +514,8 @@
 
   // جسم ePOS-Print XML: الفاتورة كصورة نقطية ثم قص الورق
   // نسخة الزبون ثم قص، ثم نسخة التحضير ثم قص — في مهمة طباعة واحدة
-  function eposPrintXml(o) {
+  function eposPrintXml(o) { return inReceiptLang(() => eposPrintXmlNow(o)); }
+  function eposPrintXmlNow(o) {
     const parts = copies().map((kind) => {
       const cv = receiptCanvas(o, kind);
       return `<image width="${cv.width}" height="${cv.height}" color="color_1" mode="mono">${canvasToMonoBase64(cv)}</image>` +
@@ -623,7 +631,7 @@
   function renderSettings() {
     $('#setShop').value = settings.shop; $('#setFooter').value = settings.footer;
     $('#setVat').checked = settings.vat; $('#setVatNo').value = settings.vatNo;
-    $('#setPrintMode').value = settings.printMode; $('#setPrepCopy').checked = settings.prepCopy; $('#setPaper').value = settings.paper; $('#setIp').value = settings.ip;
+    $('#setPrintMode').value = settings.printMode; $('#setPrepCopy').checked = settings.prepCopy; $('#setReceiptLang').value = settings.receiptLang; $('#setPaper').value = settings.paper; $('#setIp').value = settings.ip;
     $('#setPagers').value = settings.pagers;
     $('#setCloudKey').value = settings.cloudKey;
     renderCloudStatus(); renderTgStatus();
@@ -668,7 +676,7 @@
       save('bunni.settings', settings); updatePrintHint();
     });
     bind('#setShop', 'shop'); bind('#setFooter', 'footer'); bind('#setVat', 'vat', 'checked'); bind('#setVatNo', 'vatNo');
-    bind('#setPrintMode', 'printMode'); bind('#setPrepCopy', 'prepCopy', 'checked'); bind('#setPaper', 'paper'); bind('#setIp', 'ip');
+    bind('#setPrintMode', 'printMode'); bind('#setPrepCopy', 'prepCopy', 'checked'); bind('#setReceiptLang', 'receiptLang'); bind('#setPaper', 'paper'); bind('#setIp', 'ip');
     $('#setCloudKey').addEventListener('change', (e) => {
       settings.cloudKey = e.target.value.trim(); save('bunni.settings', settings); cloudState.error = ''; flush();
     });
