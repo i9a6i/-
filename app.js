@@ -29,7 +29,7 @@
   // ---------- الحالة ----------
   const PAY = { cash: 'كاش', card: 'شبكة' };
   const settings = Object.assign(
-    { shop: 'BNY', footer: 'شكراً لزيارتكم', vat: false, vatNo: '', printMode: 'airprint', paper: '80', ip: '', pagers: 20, cloudKey: '' },
+    { shop: 'BNY', footer: 'شكراً لزيارتكم', vat: false, vatNo: '', printMode: 'airprint', prepCopy: true, paper: '80', ip: '', pagers: 20, cloudKey: '' },
     load('bunni.settings', {})
   );
 
@@ -66,6 +66,8 @@
     'لا توجد تحديثات بعد': 'No activity yet', 'الرقم الضريبي: {n}': 'VAT no.: {n}', 'طلب رقم': 'Order no.',
     'خصم': 'Discount', 'الخصم': 'Discount', 'شامل ضريبة 15%': 'Incl. 15% VAT', 'الدفع': 'Payment', 'ملاحظة: {n}': 'Note: {n}', 'ملغي': 'VOID',
     'شكراً لزيارتكم': 'Thank you for visiting',
+    'نسخة التحضير': 'PREP TICKET', 'نسخة الزبون': 'Customer copy',
+    'طباعة نسختين: نسخة الزبون + نسخة التحضير للباريستا (بدون أسعار)': 'Print two copies: customer copy + prep ticket for the barista (no prices)',
     'أدخل عنوان IP للطابعة في الإعدادات': 'Enter the printer IP address in Settings', 'الطابعة رفضت الطلب': 'The printer rejected the job',
     'تم حفظ الطلب #{n}': 'Order #{n} saved', 'تمت طباعة الطلب #{n}': 'Order #{n} printed',
     'تعذّر الاتصال بالطابعة — تحقق من الشبكة وعنوان IP': 'Could not reach the printer — check the network and IP address',
@@ -347,11 +349,40 @@
   // ---------- الطباعة ----------
   const vatOf = (total) => total * 15 / 115;
 
+  // كل طلب يطبع نسختين: نسخة الزبون (بالأسعار) ونسخة التحضير للباريستا (بدون أسعار وبخط كبير)
+  const copies = () => (settings.prepCopy ? ['customer', 'prep'] : ['customer']);
+
   function buildReceiptDom(o) {
-    const r = $('#receipt'); r.replaceChildren(); r.dir = lang === 'en' ? 'ltr' : 'rtl';
-    r.style.setProperty('--paper', settings.paper === '58' ? '48mm' : '72mm');
+    const box = $('#receipt'); box.replaceChildren(); box.dir = lang === 'en' ? 'ltr' : 'rtl';
+    box.style.setProperty('--paper', settings.paper === '58' ? '48mm' : '72mm');
+    for (const kind of copies()) {
+      const r = el('div', { class: 'copy ' + kind });
+      if (kind === 'prep') buildPrepDom(r, o); else buildCustomerDom(r, o);
+      box.append(r);
+    }
+  }
+
+  function buildPrepDom(r, o) {
+    const d = new Date(o.ts);
+    r.append(
+      el('div', { class: 'kind inv', text: t('نسخة التحضير') }),
+      el('div', { class: 'huge', text: '#' + o.no }),
+      o.pager ? el('div', { class: 'pager', text: t('بيجر {n}', { n: o.pager }) }) : null,
+      el('div', { class: 'c', text: `${pad(d.getHours())}:${pad(d.getMinutes())}` }),
+      el('hr')
+    );
+    const tb = el('table', { class: 'prep-items' });
+    for (const l of o.items) tb.append(el('tr', {}, [el('td', { class: 'pq', text: l.qty + '×' }), el('td', { text: itemName(l) })]));
+    r.append(tb);
+    if (o.note) r.append(el('hr'), el('div', { class: 'prep-note', text: t('ملاحظة: {n}', { n: o.note }) }));
+    if (o.void) r.append(el('hr'), el('div', { class: 'big', text: t('ملغي') }));
+    r.append(el('hr'));
+  }
+
+  function buildCustomerDom(r, o) {
     const d = new Date(o.ts);
     r.append(el('img', { class: 'logo', src: 'img/receipt-logo.png', alt: '' }), el('h1', { text: settings.shop }));
+    if (settings.prepCopy) r.append(el('div', { class: 'c kind', text: t('نسخة الزبون') }));
     if (settings.vat && settings.vatNo) r.append(el('div', { class: 'c', text: t('الرقم الضريبي: {n}', { n: settings.vatNo }) }));
     r.append(
       el('div', { class: 'c', text: t('طلب رقم') }),
@@ -380,15 +411,28 @@
   }
 
   // رسم الفاتورة كصورة (للطابعات الحرارية التي لا تدعم العربية نصياً)
-  function receiptCanvas(o) {
+  function receiptCanvas(o, kind = 'customer') {
     const W = settings.paper === '58' ? 384 : 576;
     const rows = []; // { type, a, b, size, bold }
     const d = new Date(o.ts);
     const T = (a, size = 24, bold = false) => rows.push({ type: 'c', a, size, bold });
     const LR = (a, b, size = 24, bold = false) => rows.push({ type: 'lr', a, b, size, bold });
     const HR = () => rows.push({ type: 'hr', size: 16 });
+    if (kind === 'prep') {
+      // نسخة التحضير: رقم الطلب والأصناف بخط كبير، بدون أسعار
+      rows.push({ type: 'box', a: t('نسخة التحضير'), size: 34 });
+      T('#' + o.no, 90, true);
+      if (o.pager) rows.push({ type: 'box', a: t('بيجر {n}', { n: o.pager }), size: 52 });
+      T(`${pad(d.getHours())}:${pad(d.getMinutes())}`, 26); HR();
+      for (const l of o.items) rows.push({ type: 'r', a: `${l.qty}×  ${itemName(l)}`, size: 38, bold: true });
+      if (o.note) { HR(); rows.push({ type: 'r', a: t('ملاحظة: {n}', { n: o.note }), size: 32, bold: true }); }
+      if (o.void) { HR(); T(t('ملغي'), 44, true); }
+      HR();
+      return drawRows(rows, W);
+    }
     if (receiptLogo.complete && receiptLogo.naturalWidth) rows.push({ type: 'img', img: receiptLogo, h: 210 });
     T(settings.shop, 36, true);
+    if (settings.prepCopy) T(t('نسخة الزبون'), 22);
     if (settings.vat && settings.vatNo) T(t('الرقم الضريبي: {n}', { n: settings.vatNo }), 22);
     T(t('طلب رقم'), 24); T('#' + o.no, 60, true);
     if (o.pager) rows.push({ type: 'box', a: t('بيجر {n}', { n: o.pager }), size: 52 });
@@ -402,7 +446,10 @@
     if (o.note) { HR(); rows.push({ type: 'r', a: t('ملاحظة: {n}', { n: o.note }), size: 22 }); }
     if (o.void) { HR(); T(t('ملغي'), 44, true); }
     HR(); T(footerText(), 22);
+    return drawRows(rows, W);
+  }
 
+  function drawRows(rows, W) {
     const lh = (r) => r.type === 'img' ? r.h + 12 : r.type === 'box' ? Math.round(r.size * 1.9) : Math.round(r.size * 1.5);
     const H = rows.reduce((s, r) => s + lh(r), 0) + 24;
     const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
@@ -459,12 +506,14 @@
   }
 
   // جسم ePOS-Print XML: الفاتورة كصورة نقطية ثم قص الورق
+  // نسخة الزبون ثم قص، ثم نسخة التحضير ثم قص — في مهمة طباعة واحدة
   function eposPrintXml(o) {
-    const cv = receiptCanvas(o);
-    return '<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">' +
-      `<image width="${cv.width}" height="${cv.height}" color="color_1" mode="mono">${canvasToMonoBase64(cv)}</image>` +
-      '<feed line="3"/><cut type="feed"/>' +
-      '</epos-print>';
+    const parts = copies().map((kind) => {
+      const cv = receiptCanvas(o, kind);
+      return `<image width="${cv.width}" height="${cv.height}" color="color_1" mode="mono">${canvasToMonoBase64(cv)}</image>` +
+        '<feed line="3"/><cut type="feed"/>';
+    });
+    return '<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">' + parts.join('') + '</epos-print>';
   }
 
   // عبر تطبيق Epson TM Print Assistant على الآيباد (يطبع على الطابعة عبر الشبكة المحلية)
@@ -574,7 +623,7 @@
   function renderSettings() {
     $('#setShop').value = settings.shop; $('#setFooter').value = settings.footer;
     $('#setVat').checked = settings.vat; $('#setVatNo').value = settings.vatNo;
-    $('#setPrintMode').value = settings.printMode; $('#setPaper').value = settings.paper; $('#setIp').value = settings.ip;
+    $('#setPrintMode').value = settings.printMode; $('#setPrepCopy').checked = settings.prepCopy; $('#setPaper').value = settings.paper; $('#setIp').value = settings.ip;
     $('#setPagers').value = settings.pagers;
     $('#setCloudKey').value = settings.cloudKey;
     renderCloudStatus(); renderTgStatus();
@@ -619,7 +668,7 @@
       save('bunni.settings', settings); updatePrintHint();
     });
     bind('#setShop', 'shop'); bind('#setFooter', 'footer'); bind('#setVat', 'vat', 'checked'); bind('#setVatNo', 'vatNo');
-    bind('#setPrintMode', 'printMode'); bind('#setPaper', 'paper'); bind('#setIp', 'ip');
+    bind('#setPrintMode', 'printMode'); bind('#setPrepCopy', 'prepCopy', 'checked'); bind('#setPaper', 'paper'); bind('#setIp', 'ip');
     $('#setCloudKey').addEventListener('change', (e) => {
       settings.cloudKey = e.target.value.trim(); save('bunni.settings', settings); cloudState.error = ''; flush();
     });
