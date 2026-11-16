@@ -109,6 +109,32 @@
     return { added, log: r.log || [] };
   }
 
+  async function tgAction(action, extra = {}) {
+    if (!settings.cloudKey) { toast('أدخل رمز السحابة أولاً'); return null; }
+    try {
+      const res = await fetch('api/telegram', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-pos-key': settings.cloudKey }, body: JSON.stringify({ action, ...extra }) });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = {
+          telegram_not_configured: 'توكن البوت غير مضاف في Vercel بعد',
+          no_private_message: 'أرسل /start للبوت من تيليجرام أولاً ثم أعد المحاولة',
+          not_linked: 'اضغط "ربط تيليجرام" أولاً',
+          bad_key: 'رمز السحابة غير صحيح',
+          storage_not_configured: 'التخزين السحابي غير مفعّل بعد',
+        }[body.error];
+        toast(msg || 'تعذّر الاتصال بتيليجرام'); return null;
+      }
+      return body;
+    } catch { toast('تعذّر الاتصال بالإنترنت'); return null; }
+  }
+
+  async function renderTgStatus() {
+    const box = $('#tgStatus');
+    if (!settings.cloudKey) { box.textContent = 'فعّل السحابة أولاً.'; return; }
+    const r = await tgAction('status');
+    box.textContent = r ? `البوت: @${r.bot} — ${r.linked ? '✅ مربوط، الإشعارات تعمل' : 'غير مربوط بعد'}` : '';
+  }
+
   function renderLog(log) {
     const box = $('#cloudLog'); box.replaceChildren();
     if (!log.length) { box.append(el('div', { class: 'empty', text: 'لا توجد تحديثات بعد' })); return; }
@@ -471,7 +497,7 @@
     $('#setPrintMode').value = settings.printMode; $('#setPaper').value = settings.paper; $('#setIp').value = settings.ip;
     $('#setPagers').value = settings.pagers;
     $('#setCloudKey').value = settings.cloudKey;
-    renderCloudStatus();
+    renderCloudStatus(); renderTgStatus();
     updatePrintHint();
     const box = $('#menuEdit'); box.replaceChildren();
     const catName = Object.fromEntries(window.CATEGORIES.map((c) => [c.id, c.name]));
@@ -523,6 +549,11 @@
       try { const r = await pullCloud(dayKey()); renderLog(r.log); toast(r.added ? `تمت المزامنة — أُضيف ${r.added} طلب من السحابة` : 'تمت المزامنة'); }
       catch (err) { toast(err.message); }
     });
+    $('#tgLink').addEventListener('click', async () => {
+      const r = await tgAction('link'); if (r) { toast('تم الربط ✅ ' + (r.name || '')); renderTgStatus(); }
+    });
+    $('#tgTest').addEventListener('click', async () => { if (await tgAction('test')) toast('أُرسلت رسالة تجريبية'); });
+    $('#tgSummary').addEventListener('click', async () => { await flush(); if (await tgAction('summary', { day: dayKey() })) toast('أُرسل ملخص اليوم'); });
     $('#setPagers').addEventListener('change', (e) => {
       settings.pagers = Math.min(99, Math.max(0, parseInt(e.target.value, 10) || 0));
       e.target.value = settings.pagers; save('bunni.settings', settings); renderPagers();
@@ -565,7 +596,10 @@
   const tick = () => { const d = new Date(); $('#clock').textContent = `${dayKey(d)}  ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
   tick(); setInterval(tick, 20000);
 
-  renderPagers(); renderCats(); renderGrid(); renderCart(); flush();
+  renderPagers(); renderCats(); renderGrid(); renderCart();
+  // "فتح الكاشير": مرة عند أول فتح، ثم مرة كل 3 ساعات على الأكثر (إعادة تحميل الصفحة لا تكرر الإشعار)
+  const lastOpen = load('bunni.lastOpen', 0);
+  if (Date.now() - lastOpen > 3 * 3600 * 1000) { save('bunni.lastOpen', Date.now()); queue('open', { day: dayKey() }); } else flush();
 
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
