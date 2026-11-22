@@ -19,9 +19,10 @@ window.MENU = [
   { id: 'h-italian', en: 'Italian', icon: '☕', cat: 'hot', name: 'ايطالي', price: 10 },
   { id: 'h-hotchoc', en: 'Hot Chocolate', icon: '🍫', cat: 'hot', name: 'هوت تشوكليت', price: 10 },
   { id: 'h-v60', en: 'Hot V60', icon: '⏳', cat: 'hot', name: 'V60 حار', price: 14 },
+  { id: 'h-spanish', en: 'Hot Spanish Latte', icon: '☕', cat: 'hot', name: 'سبانش لاتيه حار', price: 14 },
   // COLD
   { id: 'c-freddo', en: 'Espresso Freddo', icon: '🧊', cat: 'cold', name: 'إسبريسو فريدو', price: 11 },
-  { id: 'c-spanish', en: 'Spanish Latte', icon: '🥛', cat: 'cold', name: 'سبانش لاتيه', price: 15 },
+  { id: 'c-spanish', en: 'Iced Spanish Latte', icon: '🥛', cat: 'cold', name: 'سبانش لاتيه بارد', price: 15 },
   { id: 'c-latte', en: 'Iced Latte', icon: '🧋', cat: 'cold', name: 'آيس لاتيه', price: 13 },
   { id: 'c-americano', en: 'Iced Americano', icon: '🥤', cat: 'cold', name: 'آيس أمريكانو', price: 11 },
   { id: 'c-matcha', en: 'Matcha', icon: '🍵', cat: 'cold', name: 'ماتشا', price: 14 },
@@ -30,6 +31,7 @@ window.MENU = [
   { id: 'c-v60', en: 'Iced V60', icon: '⏳', cat: 'cold', name: 'Iced V60', price: 15 },
   { id: 'c-today', en: 'Coffee of the Day', icon: '🥤', cat: 'cold', name: 'قهوة اليوم', price: 8 },
   { id: 'c-redeye', en: 'Red Eye', icon: '⚡', cat: 'cold', name: 'ريد آي', price: 22 },
+  { id: 'c-water', en: 'Water', icon: '💧', cat: 'cold', name: 'موية', price: 1 },
   // SWEETS
   { id: 's-brownie-madrid', en: 'Brownie Madrid', cat: 'sweet', name: 'حلا براوني مدريد', price: 15, img: 'brownie-madrid.jpg' },
   { id: 's-goldest', en: 'Goldest', cat: 'sweet', name: 'جولدست', price: 15, img: 'goldest.jpg' },
