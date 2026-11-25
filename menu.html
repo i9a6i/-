@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>منيو BNY</title>
+<meta name="theme-color" content="#f3dbc3">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="منيو BNY">
+<link rel="apple-touch-icon" href="img/icon-180.png">
+<link rel="icon" href="img/icon-180.png">
+<style>
+  /* منيو عرض للزبائن (الآيباد الثاني). الأصناف والأسعار من menu.js نفسه الذي يستخدمه الكاشير. */
+  :root {
+    --bg: #f3dbc3;
+    --ink: #2a1214;
+    --maroon: #5a1418;
+    --muted: #8a6f66;
+    --line: #d9b99a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: -apple-system, "SF Arabic", "Segoe UI", Tahoma, "Noto Sans Arabic", sans-serif;
+    padding: 0 max(16px, env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    -webkit-user-select: none; user-select: none;
+  }
+  header { text-align: center; padding: 28px 0 8px; }
+  header img { width: 150px; height: auto; border-radius: 22px; box-shadow: 0 6px 18px rgba(90, 20, 24, .25); }
+  header p { margin: 10px 0 0; letter-spacing: 4px; font-size: 13px; color: var(--muted); }
+  section { max-width: 1180px; margin: 0 auto; }
+  .sec-head { display: flex; align-items: center; gap: 14px; margin: 34px 0 18px; }
+  .sec-head h2 { margin: 0; font-size: 34px; font-weight: 900; color: var(--maroon); }
+  .sec-head small { letter-spacing: 4px; font-size: 13px; color: var(--muted); }
+  .sec-head::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 22px 14px; }
+  .item { text-align: center; }
+  .item .pic { width: 100%; aspect-ratio: 1; object-fit: contain; display: block; }
+  .item .ph { width: 100%; aspect-ratio: 1; display: grid; place-items: center; }
+  .item .ph span { width: 70%; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; background: rgba(90, 20, 24, .08); font-size: 64px; }
+  .item .ph img { width: 46%; height: auto; border-radius: 14px; opacity: .85; }
+  .item h3 { margin: 6px 0 2px; font-size: 19px; font-weight: 800; }
+  .item .en { display: block; font-size: 11px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; direction: ltr; }
+  .item .price { margin-top: 6px; font-size: 24px; font-weight: 900; color: var(--ink); }
+  .item .price small { font-size: 12px; font-weight: 600; color: var(--muted); margin-inline-start: 3px; }
+  footer { text-align: center; margin-top: 40px; color: var(--muted); font-size: 13px; letter-spacing: 2px; }
+  @media (min-width: 900px) { .grid { grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); } }
+</style>
+</head>
+<body>
+<header>
+  <img src="img/logo.png" alt="BNY">
+  <p>SPECIALTY COFFEE · BREWED DAILY</p>
+</header>
+<main id="menu"></main>
+<footer>BNY.</footer>
+
+<script src="menu.js"></script>
+<script>
+(() => {
+  'use strict';
+  // ترتيب الأقسام في منيو العرض
+  const SECTIONS = [
+    { cat: 'hot', name: 'حار', en: 'HOT' },
+    { cat: 'cold', name: 'بارد', en: 'ICED' },
+    { cat: 'food', name: 'فطور', en: 'BREAKFAST' },
+    { cat: 'sweet', name: 'حلا', en: 'DESSERTS' },
+  ];
+  const money = (n) => (Math.round(n * 100) % 100 ? n.toFixed(2) : String(Math.round(n)));
+  const el = (tag, props = {}, kids = []) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(props)) {
+      if (k === 'class') n.className = v; else if (k === 'text') n.textContent = v; else n.setAttribute(k, v);
+    }
+    for (const c of [].concat(kids)) if (c != null) n.append(c);
+    return n;
+  };
+
+  const root = document.getElementById('menu');
+  for (const s of SECTIONS) {
+    const items = window.MENU.filter((m) => m.cat === s.cat && !m.hidden);
+    if (!items.length) continue;
+    const grid = el('div', { class: 'grid' });
+    for (const m of items) {
+      // الرسومات فقط؛ الصنف بلا رسمة يظهر برمزه أو بشعار BNY
+      const pic = m.img && m.img.startsWith('illus/')
+        ? el('img', { class: 'pic', src: 'img/' + m.img, alt: '' })
+        : el('div', { class: 'ph' }, [m.icon ? el('span', { text: m.icon }) : el('img', { src: 'img/logo.png', alt: '' })]);
+      grid.append(el('div', { class: 'item' }, [
+        pic,
+        el('h3', { text: m.name }),
+        el('span', { class: 'en', text: m.en || '' }),
+        el('div', { class: 'price' }, [money(m.price), el('small', { text: 'ر.س' })]),
+      ]));
+    }
+    root.append(el('section', {}, [
+      el('div', { class: 'sec-head' }, [el('h2', { text: s.name }), el('small', { text: s.en })]),
+      grid,
+    ]));
+  }
+
+  // ?auto في الرابط: تمرير تلقائي بطيء من فوق لتحت ثم يرجع للبداية (لشاشة عرض ثابتة)
+  if (new URLSearchParams(location.search).has('auto')) {
+    let paused = 0;
+    setInterval(() => {
+      if (paused > 0) { paused--; return; }
+      const end = document.documentElement.scrollHeight - innerHeight;
+      if (scrollY >= end - 2) { paused = 120; setTimeout(() => scrollTo({ top: 0, behavior: 'smooth' }), 4000); return; }
+      scrollBy(0, 1);
+    }, 30);
+  }
+
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>
