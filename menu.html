@@ -28,8 +28,7 @@
     -webkit-user-select: none; user-select: none;
   }
   header { text-align: center; padding: 28px 0 8px; }
-  header img { width: 150px; height: auto; border-radius: 22px; box-shadow: 0 6px 18px rgba(90, 20, 24, .25); }
-  header p { margin: 10px 0 0; letter-spacing: 4px; font-size: 13px; color: var(--muted); }
+  header img { width: 190px; height: auto; display: block; margin: 0 auto; }
   section { max-width: 1180px; margin: 0 auto; }
   .sec-head { display: flex; align-items: center; gap: 14px; margin: 34px 0 18px; }
   .sec-head h2 { margin: 0; font-size: 34px; font-weight: 900; color: var(--maroon); }
@@ -37,7 +36,10 @@
   .sec-head::after { content: ""; flex: 1; height: 1px; background: var(--line); }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 22px 14px; }
   .item { text-align: center; }
-  .item .pic { width: 100%; aspect-ratio: 1; object-fit: contain; display: block; }
+  .item .pic { width: 100%; aspect-ratio: 1; object-fit: contain; display: block;
+    /* تذويب أطراف الرسمة حتى لا يظهر مربع حولها على خلفية الصفحة */
+    -webkit-mask-image: radial-gradient(closest-side, #000 78%, transparent 100%);
+    mask-image: radial-gradient(closest-side, #000 78%, transparent 100%); }
   .item .ph { width: 100%; aspect-ratio: 1; display: grid; place-items: center; }
   .item .ph span { width: 70%; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; background: rgba(90, 20, 24, .08); font-size: 64px; }
   .item .ph img { width: 46%; height: auto; border-radius: 14px; opacity: .85; }
@@ -51,8 +53,7 @@
 </head>
 <body>
 <header>
-  <img src="img/logo.png" alt="BNY">
-  <p>SPECIALTY COFFEE · BREWED DAILY</p>
+  <img src="img/logo-menu.png" alt="BNY. Specialty coffee, brewed daily">
 </header>
 <main id="menu"></main>
 <footer>BNY.</footer>
