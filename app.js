@@ -27,7 +27,10 @@
   };
 
   // ---------- الحالة ----------
-  const PAY = { cash: 'كاش', card: 'شبكة' };
+  const PAY = { cash: 'كاش', card: 'شبكة', split: 'كاش + شبكة' };
+  // كم دُفع كاش وكم شبكة في الطلب (للدفع المقسّم والإحصاءات)
+  const payParts = (o) => o.pay === 'split' ? { cash: Number(o.cash) || 0, card: Number(o.card) || 0 }
+    : o.pay === 'card' ? { cash: 0, card: o.total } : { cash: o.total, card: 0 };
   const settings = Object.assign(
     { shop: 'BNY', footer: 'شكراً لزيارتكم', vat: false, vatNo: '', printMode: 'airprint', prepCopy: true, receiptLang: 'en', paper: '80', ip: '', pagers: 20, cloudKey: '' },
     load('bunni.settings', {})
@@ -87,6 +90,9 @@
     'الطلبات مطابقة للسحابة': 'Orders match the cloud',
     'المبلغ المستلم': 'Cash received', 'الباقي للزبون': 'Change due', 'مضبوط': 'Exact', 'ناقص {n}': 'Short {n}',
     'المستلم': 'Received', 'الباقي': 'Change',
+    'كاش + شبكة': 'Cash + Card', 'المبلغ كاش': 'Cash amount', 'على الشبكة': 'On card', 'ادفع الباقي {n} شبكة': 'Pay remaining {n} by card',
+    'أدخل مبلغ الكاش (أقل من الإجمالي)': 'Enter the cash amount (less than the total)', 'كاش {n}': 'Cash {n}', 'شبكة {n}': 'Card {n}',
+    'مبلغ الكاش أكبر من الإجمالي أو يساويه': 'Cash amount is equal to or more than the total',
   };
   const t = (s, vars) => {
     let r = lang === 'en' && EN[s] != null ? EN[s] : s;
@@ -317,7 +323,7 @@
     $('#subTotal').textContent = money(tot.sub) + ' ' + t('ر.س');
     $('#grandTotal').textContent = money(tot.total) + ' ' + t('ر.س');
     $('#checkout').disabled = !cart.length;
-    renderCash(tot.total);
+    renderCash(tot.total); renderSplit(tot.total);
     $('#orderNo').textContent = '#' + nextSeq(false);
   }
 
@@ -352,16 +358,46 @@
     const c = cashInfo(total), out = $('#changeDue'), row = out.parentElement;
     row.classList.toggle('short', !!c && c.change < 0);
     out.textContent = !c ? '—' : c.change < 0 ? t('ناقص {n}', { n: money(-c.change) + ' ' + t('ر.س') }) : `${money(c.change)} ${t('ر.س')}`;
+    // الزبون دفع كاش أقل من الإجمالي: زر يحوّل الباقي على الشبكة
+    const rest = $('#payRestCard');
+    rest.hidden = !(c && c.change < 0 && c.received > 0);
+    if (!rest.hidden) rest.textContent = t('ادفع الباقي {n} شبكة', { n: money(-c.change) });
+  }
+
+  // الدفع المقسّم: جزء كاش والباقي شبكة
+  function splitInfo(total) {
+    if (pay !== 'split') return null;
+    const v = parseFloat($('#splitCash').value);
+    const cash = Math.max(0, Number.isFinite(v) ? Math.round(v * 100) / 100 : 0);
+    return { cash, card: Math.round((total - cash) * 100) / 100, ok: cash > 0 && cash < total };
+  }
+
+  function renderSplit(total) {
+    const box = $('#splitBox');
+    box.hidden = pay !== 'split' || !cart.length;
+    if (box.hidden) return;
+    const sp = splitInfo(total), out = $('#splitCard');
+    out.parentElement.classList.toggle('short', $('#splitCash').value !== '' && !sp.ok);
+    out.textContent = $('#splitCash').value === '' ? '—'
+      : sp.ok ? `${money(sp.card)} ${t('ر.س')}` : t('مبلغ الكاش أكبر من الإجمالي أو يساويه');
+  }
+
+  function setPay(p) {
+    pay = p;
+    document.querySelectorAll('#payMethods button').forEach((x) => x.classList.toggle('active', x.dataset.pay === p));
+    renderCart();
   }
 
   function resetCart() {
-    cart = []; $('#discount').value = ''; $('#orderNote').value = ''; $('#pager').value = ''; $('#received').value = '';
+    cart = []; $('#discount').value = ''; $('#orderNote').value = ''; $('#pager').value = ''; $('#received').value = ''; $('#splitCash').value = '';
+    if (pay === 'split') setPay('cash');
     renderCart(); renderGrid();
   }
 
   async function checkout() {
     if (!cart.length) return;
     const tot = totals();
+    if (pay === 'split' && !splitInfo(tot.total).ok) { toast(t('أدخل مبلغ الكاش (أقل من الإجمالي)')); $('#splitCash').focus(); return; }
     const order = {
       id: Date.now().toString(36),
       no: nextSeq(true),
@@ -374,6 +410,11 @@
     };
     const c = cashInfo(tot.total);
     if (c && c.received > 0) { order.received = c.received; order.change = Math.max(0, c.change); }
+    if (pay === 'split') {
+      const sp = splitInfo(tot.total);
+      if (!sp.ok) { toast(t('أدخل مبلغ الكاش (أقل من الإجمالي)')); $('#splitCash').focus(); return; }
+      order.cash = sp.cash; order.card = sp.card;
+    }
     orders.push(order);
     if (!save('bunni.orders', orders)) toast(t('تعذّر حفظ الطلب على الجهاز — تحقق من مساحة التخزين'));
     queue('order', order);
@@ -440,6 +481,10 @@
     tt.append(el('tr', { class: 't' }, [el('td', { text: t('الإجمالي') }), el('td', { class: 'p', text: money(o.total) + ' ' + t('ر.س') })]));
     if (settings.vat) tt.append(el('tr', {}, [el('td', { text: t('شامل ضريبة 15%') }), el('td', { class: 'p', text: money(+vatOf(o.total).toFixed(2)) })]));
     tt.append(el('tr', {}, [el('td', { text: t('الدفع') }), el('td', { class: 'p', text: t(PAY[o.pay] || o.pay) })]));
+    if (o.pay === 'split') {
+      tt.append(el('tr', {}, [el('td', { text: t('كاش') }), el('td', { class: 'p', text: money(o.cash) + ' ' + t('ر.س') })]));
+      tt.append(el('tr', {}, [el('td', { text: t('شبكة') }), el('td', { class: 'p', text: money(o.card) + ' ' + t('ر.س') })]));
+    }
     if (o.received) {
       tt.append(el('tr', {}, [el('td', { text: t('المستلم') }), el('td', { class: 'p', text: money(o.received) })]));
       tt.append(el('tr', { class: 't' }, [el('td', { text: t('الباقي') }), el('td', { class: 'p', text: money(o.change || 0) + ' ' + t('ر.س') })]));
@@ -483,6 +528,7 @@
     LR(t('الإجمالي'), money(o.total) + ' ' + t('ر.س'), 32, true);
     if (settings.vat) LR(t('شامل ضريبة 15%'), money(+vatOf(o.total).toFixed(2)), 22);
     LR(t('الدفع'), t(PAY[o.pay] || o.pay), 22);
+    if (o.pay === 'split') { LR(t('كاش'), money(o.cash) + ' ' + t('ر.س'), 26, true); LR(t('شبكة'), money(o.card) + ' ' + t('ر.س'), 26, true); }
     if (o.received) { LR(t('المستلم'), money(o.received), 24); LR(t('الباقي'), money(o.change || 0) + ' ' + t('ر.س'), 30, true); }
     if (o.note) { HR(); rows.push({ type: 'r', a: t('ملاحظة: {n}', { n: o.note }), size: 22 }); }
     if (o.void) { HR(); T(t('ملغي'), 44, true); }
@@ -622,8 +668,8 @@
     const stat = (label, val) => stats.append(el('div', { class: 'stat' }, [el('small', { text: label }), el('b', { text: val })]));
     stat(t('عدد الطلبات'), ok.length);
     stat(t('إجمالي المبيعات'), money(sum(ok)) + ' ' + t('ر.س'));
-    stat(t('كاش'), money(sum(ok.filter((o) => o.pay === 'cash'))) + ' ' + t('ر.س'));
-    stat(t('شبكة'), money(sum(ok.filter((o) => o.pay === 'card'))) + ' ' + t('ر.س'));
+    stat(t('كاش'), money(ok.reduce((s, o) => s + payParts(o).cash, 0)) + ' ' + t('ر.س'));
+    stat(t('شبكة'), money(ok.reduce((s, o) => s + payParts(o).card, 0)) + ' ' + t('ر.س'));
 
     const box = $('#ordersList'); box.replaceChildren();
     if (!list.length) box.append(el('div', { class: 'empty', text: t('لا توجد طلبات في هذا اليوم') }));
@@ -632,7 +678,7 @@
         el('div', { class: 'order' + (o.void ? ' void' : '') }, [
           el('div', { class: 'oh' }, [
             el('b', { text: `#${o.no} — ${timeStr(o.ts)}` + (o.pager ? ` — ${t('بيجر {n}', { n: o.pager })}` : '') }),
-            el('span', {}, [el('span', { class: 'tag', text: t(o.void ? 'ملغي' : PAY[o.pay]) }), ' ', el('b', { text: money(o.total) + ' ' + t('ر.س') })]),
+            el('span', {}, [el('span', { class: 'tag', text: o.void ? t('ملغي') : o.pay === 'split' ? `${t('كاش {n}', { n: money(o.cash) })} + ${t('شبكة {n}', { n: money(o.card) })}` : t(PAY[o.pay]) }), ' ', el('b', { text: money(o.total) + ' ' + t('ر.س') })]),
           ]),
           el('div', { class: 'oi', text: o.items.map((l) => `${itemName(l)} ×${l.qty}`).join(lang === 'en' ? ', ' : '، ') + (o.note ? ` — ${o.note}` : '') }),
           el('div', { class: 'oa' }, [
@@ -651,9 +697,9 @@
   function exportCsv() {
     const day = $('#ordersDate').value || dayKey();
     const q = (s) => '"' + String(s).replace(/"/g, '""') + '"';
-    const rows = [['رقم', 'البيجر', 'الوقت', 'الأصناف', 'المجموع', 'الخصم', 'الإجمالي', 'الدفع', 'الحالة', 'ملاحظة'].map((h) => t(h))];
+    const rows = [['رقم', 'البيجر', 'الوقت', 'الأصناف', 'المجموع', 'الخصم', 'الإجمالي', 'الدفع', 'كاش', 'شبكة', 'الحالة', 'ملاحظة'].map((h) => t(h))];
     for (const o of orders.filter((x) => x.day === day)) {
-      rows.push([o.no, o.pager || '', timeStr(o.ts), o.items.map((l) => `${itemName(l)} x${l.qty}`).join(' | '), o.sub, o.disc, o.total, t(PAY[o.pay]), o.void ? t('ملغي') : '', o.note || '']);
+      rows.push([o.no, o.pager || '', timeStr(o.ts), o.items.map((l) => `${itemName(l)} x${l.qty}`).join(' | '), o.sub, o.disc, o.total, t(PAY[o.pay]), payParts(o).cash, payParts(o).card, o.void ? t('ملغي') : '', o.note || '']);
     }
     const blob = new Blob(['﻿' + rows.map((r) => r.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const a = el('a', { href: URL.createObjectURL(blob), download: `bunni-orders-${day}.csv` });
@@ -747,11 +793,13 @@
   }
 
   document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => show(b.dataset.view)));
-  document.querySelectorAll('#payMethods button').forEach((b) => b.addEventListener('click', () => {
-    pay = b.dataset.pay;
-    document.querySelectorAll('#payMethods button').forEach((x) => x.classList.toggle('active', x === b));
-    renderCart();
-  }));
+  document.querySelectorAll('#payMethods button').forEach((b) => b.addEventListener('click', () => setPay(b.dataset.pay)));
+  $('#splitCash').addEventListener('input', renderCart);
+  $('#payRestCard').addEventListener('click', () => {
+    // ما استلمه الكاشير كاش يصير جزء الكاش، والباقي على الشبكة
+    $('#splitCash').value = $('#received').value; $('#received').value = '';
+    setPay('split');
+  });
   $('#discount').addEventListener('input', renderCart);
   $('#received').addEventListener('input', renderCart);
   $('#clearCart').addEventListener('click', () => { if (cart.length && confirm(t('تفريغ الطلب الحالي؟'))) resetCart(); });

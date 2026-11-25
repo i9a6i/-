@@ -16,12 +16,13 @@ const L = require('./_lib');
 const MAX_EVENTS = 200;
 const LOG_KEEP = 2000;
 const TYPES = ['order', 'void', 'menu', 'open'];
-const PAY = { cash: 'كاش', card: 'شبكة' };
+const PAY = { cash: 'كاش', card: 'شبكة', split: 'كاش + شبكة' };
+const payText = (d) => d.pay === 'split' ? `كاش ${L.fmt(d.cash)} + شبكة ${L.fmt(d.card)}` : (PAY[d.pay] || d.pay);
 
 // سطر مختصر يظهر في سجل التحديثات
 function summary(ev) {
   const d = ev.data || {};
-  if (ev.type === 'order') return `طلب #${d.no}${d.pager ? ' بيجر ' + d.pager : ''} — ${L.fmt(d.total)} ر.س (${PAY[d.pay] || d.pay})`;
+  if (ev.type === 'order') return `طلب #${d.no}${d.pager ? ' بيجر ' + d.pager : ''} — ${L.fmt(d.total)} ر.س (${payText(d)})`;
   if (ev.type === 'void') return `إلغاء الطلب #${d.no}`;
   if (ev.type === 'menu') return d.text || 'تعديل المنيو';
   if (ev.type === 'open') return 'فتح الكاشير';
@@ -36,7 +37,7 @@ function message(ev, stats) {
     const lines = [`🧾 طلب #${d.no}${d.pager ? ' — 📟 بيجر ' + d.pager : ''} — ${at}`];
     for (const l of d.items || []) lines.push(`• ${l.name} ×${l.qty} = ${L.fmt(l.price * l.qty)}`);
     if (d.disc) lines.push(`خصم: -${L.fmt(d.disc)}`);
-    lines.push(`الإجمالي: ${L.fmt(d.total)} ر.س (${PAY[d.pay] || d.pay})`);
+    lines.push(`الإجمالي: ${L.fmt(d.total)} ر.س (${payText(d)})`);
     if (d.received) lines.push(`المستلم: ${L.fmt(d.received)} — الباقي: ${L.fmt(d.change)}`);
     if (d.note) lines.push(`ملاحظة: ${d.note}`);
     return lines.join('\n') + '\n\n' + L.statsLine(stats);

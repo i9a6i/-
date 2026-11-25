@@ -47,6 +47,10 @@ async function dayOrders(day) {
   return list;
 }
 
+// كم دُفع كاش وكم شبكة في الطلب (الدفع المقسّم 'split' يحمل cash و card)
+const payParts = (o) => o.pay === 'split' ? { cash: Number(o.cash) || 0, card: Number(o.card) || 0 }
+  : o.pay === 'card' ? { cash: 0, card: Number(o.total) || 0 } : { cash: Number(o.total) || 0, card: 0 };
+
 // مؤشرات اليوم من الطلبات المحفوظة في السحابة
 function dayStats(list) {
   const ok = list.filter((o) => !o.void);
@@ -56,7 +60,7 @@ function dayStats(list) {
   const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 3);
   return {
     n: ok.length, voids: list.length - ok.length, total: sum(ok),
-    cash: sum(ok.filter((o) => o.pay === 'cash')), card: sum(ok.filter((o) => o.pay === 'card')),
+    cash: ok.reduce((s, o) => s + payParts(o).cash, 0), card: ok.reduce((s, o) => s + payParts(o).card, 0),
     avg: ok.length ? sum(ok) / ok.length : 0, top,
   };
 }
@@ -95,4 +99,4 @@ async function tgSend(text, chatId) {
   return true;
 }
 
-module.exports = { redis, guard, fmt, clock, today, dayOrders, dayStats, statsLine, summaryText, tg, tgSend, tgChatId, DAY_RE, TG_TOKEN };
+module.exports = { payParts, redis, guard, fmt, clock, today, dayOrders, dayStats, statsLine, summaryText, tg, tgSend, tgChatId, DAY_RE, TG_TOKEN };
