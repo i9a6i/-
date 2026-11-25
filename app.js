@@ -266,7 +266,7 @@
     for (const m of visibleItems()) {
       const inCart = cart.find((l) => l.id === m.id);
       const pic = m.img
-        ? el('img', { class: 'pic', src: 'img/' + m.img, alt: '', loading: 'lazy' })
+        ? el('img', { class: 'pic' + (m.img.startsWith('illus/') ? ' illus' : ''), src: 'img/' + m.img, alt: '', loading: 'lazy' })
         : el('div', { class: 'pic ph ' + m.cat }, [
             el('span', { class: 'gfx', text: m.icon || (m.cat === 'cold' ? '🧊' : '☕') }),
             el('img', { src: 'img/logo.png', alt: '' }),
@@ -275,6 +275,7 @@
       grid.append(
         el('button', { class: 'tile', onclick: () => addToCart(m) }, [
           pic,
+          m.img && (m.cat === 'hot' || m.cat === 'cold') ? el('span', { class: 'temp ' + m.cat, text: t(m.cat === 'cold' ? 'بارد' : 'حار') }) : null,
           inCart ? el('span', { class: 'badge', text: inCart.qty }) : null,
           el('div', { class: 'meta' }, [el('span', { class: 'name', text: itemName(m) }), el('span', { class: 'price', text: money(m.price) + ' ' + t('ر.س') })]),
         ])
