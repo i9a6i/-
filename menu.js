@@ -49,7 +49,7 @@ window.MENU = [
   { id: 's-koja', en: 'Sweet Koja', cat: 'sweet', name: 'سويت كوجا', price: 14, img: 'illus/s-koja.jpg' },
   { id: 's-kinder', en: 'Kinder Cookies', cat: 'sweet', name: 'كوكيز كندر', price: 9, img: 'illus/s-kinder.jpg' },
   { id: 's-cookies', en: 'Cookies', cat: 'sweet', name: 'كوكيز', price: 8, img: 'illus/s-cookies.jpg' },
-  { id: 's-brownie', en: 'Brownie', cat: 'sweet', name: 'براوني', price: 10, img: 'illus/s-brownie.jpg' },
+  { id: 's-brownie', en: 'Brownie', cat: 'sweet', name: 'براوني', price: 8, img: 'illus/s-brownie.jpg' },
   // FOOD
   { id: 'f-benibrik', en: 'Bunni Brik', cat: 'food', name: 'بني بريك', price: 18, img: 'illus/f-benibrik.jpg' },
   { id: 'f-granola', en: 'Granola', cat: 'food', name: 'جرانولا', price: 11, img: 'illus/f-granola.jpg' },
