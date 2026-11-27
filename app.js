@@ -458,7 +458,7 @@
     r.append(
       el('div', { class: 'kind inv', text: t('نسخة التحضير') }),
       el('div', { class: 'huge', text: '#' + o.no }),
-      o.pager ? el('div', { class: 'pager', text: t('بيجر {n}', { n: o.pager }) }) : null,
+      o.pager ? el('div', { class: 'pager', text: t('بيجر {n}', { n: o.pager }) }) : '',
       el('div', { class: 'c', text: `${pad(d.getHours())}:${pad(d.getMinutes())}` }),
       el('hr')
     );
@@ -478,7 +478,7 @@
     r.append(
       el('div', { class: 'c', text: t('طلب رقم') }),
       el('div', { class: 'big', text: '#' + o.no }),
-      o.pager ? el('div', { class: 'pager', text: t('بيجر {n}', { n: o.pager }) }) : null,
+      o.pager ? el('div', { class: 'pager', text: t('بيجر {n}', { n: o.pager }) }) : '',
       el('div', { class: 'c', text: `${o.day}  ${pad(d.getHours())}:${pad(d.getMinutes())}` }),
       el('hr')
     );
