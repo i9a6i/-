@@ -159,17 +159,52 @@ html[dir=ltr] .lang-btn { order: -1; }
   box-shadow: 0 6px 20px rgba(0,0,0,.3); z-index: 20; max-width: 90vw; text-align: center;
 }
 
+.cart-bar { display: none; }
+
+/* ---------- الجوال ----------
+   المنيو يملأ الشاشة، والطلب شريط ثابت في الأسفل (عدد الأصناف + الإجمالي).
+   الضغط على الشريط يفتح الطلب كاملاً مع الدفع. */
 @media (max-width: 760px) {
-  .view.pos { flex-direction: column; overflow: auto; }
-  .catalog { flex: none; }
-  .grid { overflow: visible; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
-  .cart { width: auto; border-inline-start: 0; border-top: 1.5px solid var(--line); }
-  .cart-lines { max-height: 40vh; }
+  .topbar { gap: 8px; padding-inline: 10px; }
+  .brand img { height: 36px; }
   .brand span, .clock { display: none; }
-  .lang-btn { padding: 6px 10px; font-size: 14px; }
+  .tabs { margin-inline-start: 0; gap: 2px; }
+  .tabs button { padding: 7px 10px; font-size: 15px; }
+  .lang-btn { padding: 5px 9px; font-size: 13px; }
   html[dir=rtl] .lang-btn { margin-inline-start: auto; }
-  .tabs { margin-inline-start: 0; }
-  .tabs button { padding: 8px 12px; }
+  html[dir=ltr] .lang-btn { margin-inline-end: auto; }
+
+  .view.pos { display: block; overflow: hidden; position: relative; }
+  .catalog { height: 100%; }
+  .cats { padding: 8px 10px 6px; }
+  .cats button { padding: 7px 14px; font-size: 15px; }
+  .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 4px 10px calc(84px + env(safe-area-inset-bottom)); }
+  .tile { border-radius: 12px; }
+  .tile .meta { padding: 6px 6px 8px; gap: 3px; }
+  .tile .name { font-size: 13.5px; min-height: 2.6em; }
+  .tile .price { font-size: 13px; padding: 1px 7px; }
+  .tile .temp, .tile .pic.ph small { font-size: 10px; padding: 1px 6px; top: 5px; }
+  .tile .badge { top: 5px; inset-inline-start: 5px; min-width: 24px; height: 24px; font-size: 14px; }
+  .tile .pic.ph .gfx { font-size: 40px; }
+
+  .cart {
+    position: fixed; inset-inline: 0; bottom: 0; width: auto; z-index: 20;
+    border: 0; border-top: 1.5px solid var(--line); border-radius: 18px 18px 0 0;
+    box-shadow: 0 -6px 20px rgba(0,0,0,.14);
+  }
+  .cart:not(.open) > :not(.cart-bar) { display: none; }
+  .cart.open { top: calc(58px + env(safe-area-inset-top)); }
+  .cart-bar {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); font-size: 16px;
+  }
+  .cart.open .cart-bar { padding-bottom: 12px; border-bottom: 1.5px solid var(--line); }
+  .cart-bar b { font-size: 19px; color: var(--maroon); }
+  .cart-bar-act { margin-inline-start: auto; background: var(--maroon); color: var(--cream); padding: 8px 14px; border-radius: 999px; font-weight: 800; }
+  .cart-bar:disabled { opacity: .55; }
+  .cart.open { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+  .cart.open .cart-lines { flex: none; overflow: visible; max-height: none; }
+  .cart.open .cart-bar { position: sticky; top: 0; background: #fff; z-index: 1; }
 }
 
 /* ---------- الفاتورة ---------- */

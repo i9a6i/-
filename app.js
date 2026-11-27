@@ -90,7 +90,7 @@
     'الطلبات مطابقة للسحابة': 'Orders match the cloud',
     'المبلغ المستلم': 'Cash received', 'الباقي للزبون': 'Change due', 'مضبوط': 'Exact', 'ناقص {n}': 'Short {n}',
     'المستلم': 'Received', 'الباقي': 'Change',
-    'كاش + شبكة': 'Cash + Card', 'المبلغ كاش': 'Cash amount', 'على الشبكة': 'On card', 'ادفع الباقي {n} شبكة': 'Pay remaining {n} by card',
+    'كاش + شبكة': 'Cash + Card', 'عرض الطلب': 'View order', 'إخفاء الطلب': 'Hide order', '{n} صنف': 'Items: {n}', 'الطلب فارغ': 'Order is empty', 'المبلغ كاش': 'Cash amount', 'على الشبكة': 'On card', 'ادفع الباقي {n} شبكة': 'Pay remaining {n} by card',
     'أدخل مبلغ الكاش (أقل من الإجمالي)': 'Enter the cash amount (less than the total)', 'كاش {n}': 'Cash {n}', 'شبكة {n}': 'Card {n}',
     'مبلغ الكاش أكبر من الإجمالي أو يساويه': 'Cash amount is equal to or more than the total',
   };
@@ -325,6 +325,13 @@
     $('#grandTotal').textContent = money(tot.total) + ' ' + t('ر.س');
     $('#checkout').disabled = !cart.length;
     renderCash(tot.total); renderSplit(tot.total);
+    // شريط الطلب في الجوال
+    const count = cart.reduce((n, l) => n + l.qty, 0);
+    $('#cartBarInfo').textContent = count ? t('{n} صنف', { n: count }) : t('الطلب فارغ');
+    $('#cartBarTotal').textContent = count ? `${money(tot.total)} ${t('ر.س')}` : '';
+    $('#cartBar').disabled = !count && !$('.cart').classList.contains('open');
+    if (!count) toggleCart(false);
+    $('#cartBarAct').textContent = t($('.cart').classList.contains('open') ? 'إخفاء الطلب' : 'عرض الطلب');
     $('#orderNo').textContent = '#' + nextSeq(false);
   }
 
@@ -381,6 +388,12 @@
     out.parentElement.classList.toggle('short', $('#splitCash').value !== '' && !sp.ok);
     out.textContent = $('#splitCash').value === '' ? '—'
       : sp.ok ? `${money(sp.card)} ${t('ر.س')}` : t('مبلغ الكاش أكبر من الإجمالي أو يساويه');
+  }
+
+  function toggleCart(open) {
+    const c = $('.cart');
+    c.classList.toggle('open', open);
+    $('#cartBarAct').textContent = t(open ? 'إخفاء الطلب' : 'عرض الطلب');
   }
 
   function setPay(p) {
@@ -796,6 +809,7 @@
   document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => show(b.dataset.view)));
   document.querySelectorAll('#payMethods button').forEach((b) => b.addEventListener('click', () => setPay(b.dataset.pay)));
   $('#splitCash').addEventListener('input', renderCart);
+  $('#cartBar').addEventListener('click', () => toggleCart(!$('.cart').classList.contains('open')));
   $('#payRestCard').addEventListener('click', () => {
     // ما استلمه الكاشير كاش يصير جزء الكاش، والباقي على الشبكة
     $('#splitCash').value = $('#received').value; $('#received').value = '';
