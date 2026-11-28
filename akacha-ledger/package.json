@@ -1,0 +1,15 @@
+{
+  "name": "akacha-ledger",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Aka-cha cafe expenses Telegram bot: withdrawals by category + daily income from the till",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "set-webhook": "node scripts/set-webhook.mjs"
+  },
+  "dependencies": {
+    "@vercel/blob": "2.9.0"
+  }
+}
