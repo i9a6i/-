@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
   const me = await tg('getMe', {});
   const hook = await tg('setWebhook', {
-    url: `https://${req.headers.host}/api/telegram`,
+    url: `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL ?? req.headers.host}/api/telegram`,
     secret_token: process.env.TELEGRAM_WEBHOOK_SECRET,
     allowed_updates: ['message', 'callback_query'],
   });
