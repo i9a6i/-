@@ -1,0 +1,11 @@
+{
+  "name": "akacha-pulse",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Aka-cha cafe KPI dashboard: static page + two Vercel functions + Vercel Blob",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@vercel/blob": "2.9.0"
+  }
+}
